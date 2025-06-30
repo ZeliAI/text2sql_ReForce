@@ -7,8 +7,7 @@ from google.oauth2 import service_account
 import snowflake.connector
 import json
 import pandas as pd
-from multiprocessing import Process, Queue
-import threading
+from func_timeout import func_timeout, FunctionTimedOut
 
 class SqlEnv:
     def __init__(self):
@@ -150,47 +149,12 @@ class SqlEnv:
             return str(result)
 
     def execute_sqlite_with_timeout(self, sql_query, save_path, max_len, sqlite_path, timeout=300):
-        def target(q):
-            result = self.exec_sql_sqlite(sql_query, save_path, max_len, sqlite_path)
-            q.put(str(result))
-        q = Queue()
-        p = Process(target=target, args=(q,))
-        p.start()
-
-        p.join(timeout)
-        if p.is_alive():
-            try:
-                p.terminate()
-                p.join(timeout=2)
-                if p.is_alive():
-                    print("Terminate failed, forcing kill.")
-                    p.kill()
-                    p.join()
-            except Exception as e:
-                print(f"Error when stopping process: {e}")
+        try:
+            result = func_timeout(timeout, self.exec_sql_sqlite, args=(sql_query, save_path, max_len, sqlite_path))
+            return str(result)
+        except FunctionTimedOut:
             print(f"##ERROR## {sql_query} Timed out")
             return {"status": "error", "error_msg": f"##ERROR## {sql_query} Timed out\n"}
-        else:
-            if not q.empty():
-                result = q.get()
-                return result
-            else:
-                raise RuntimeError("Process p dead")
-    # def execute_sqlite_with_timeout(self, sql_query, save_path, max_len, sqlite_path, timeout=300):
-    #     result_holder = {"result": None}
-
-    #     def target():
-    #         try:
-    #             result_holder["result"] = self.exec_sql_sqlite(sql_query, save_path, max_len, sqlite_path)
-    #         except Exception as e:
-    #             result_holder["result"] = {"status": "error", "error_msg": str(e)}
-
-    #     thread = threading.Thread(target=target)
-    #     thread.start()
-    #     thread.join(timeout)
-
-    #     if thread.is_alive():
-    #         print(f"##ERROR## {sql_query} Timed out")
-    #         return {"status": "error", "error_msg": f"##ERROR## {sql_query} Timed out\n"}
-    #     else:
-    #         return str(result_holder["result"])
+        except Exception as e:
+            print(f"##ERROR## {sql_query} Exception: {e}")
+            return {"status": "error", "error_msg": f"##ERROR## {sql_query} Exception: {e}\n"}
