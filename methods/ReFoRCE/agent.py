@@ -42,7 +42,7 @@ class REFORCE:
         result_dic_list = []
         error_rec = []
         while sqls:
-            if len(result_dic) > 10 or len(self.chat_session_pre.messages) > 20:
+            if len(result_dic_list) > 10 or len(self.chat_session_pre.messages) > 20:
                 break
             result_dic = {}
             sql = sqls[0]
