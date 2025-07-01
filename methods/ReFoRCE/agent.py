@@ -1,4 +1,4 @@
-from utils import hard_cut, get_values_from_table, get_api_name, filter_bijection_like_dict, compare_pandas_table, is_valid_result, get_sqlite_path, split_sql_safe
+from utils import hard_cut, get_values_from_table, get_api_name, filter_bijection_like_dict, compare_pandas_table, is_valid_result, get_sqlite_path, split_sql
 from sql import SqlEnv
 import pandas as pd
 from io import StringIO
@@ -42,7 +42,7 @@ class REFORCE:
         result_dic_list = []
         error_rec = []
         while sqls:
-            if len(result_dic_list) > 10:
+            if len(result_dic) > 10 or len(self.chat_session_pre.messages) > 20:
                 break
             result_dic = {}
             sql = sqls[0]
@@ -86,7 +86,7 @@ class REFORCE:
                             response_sqls = []
                             for s in response:
                                 try:
-                                    queries = split_sql_safe(s)
+                                    queries = split_sql(s)
                                     response_sqls += queries
                                 except:
                                     pass
@@ -96,7 +96,7 @@ class REFORCE:
                 else:
                     error_rec.append(0)
                     # Many times error, return
-                    if len(error_rec) > 5 and sum(error_rec[-5:]) == 0:
+                    if len(error_rec) > 3 and sum(error_rec[-3:]) == 0:
                         return result_dic_list
                     continue
                 if not corrected_sql:
@@ -141,7 +141,7 @@ class REFORCE:
                 continue
             
             if len(response_pre) == 1:
-                response_pre = split_sql_safe(response_pre[0])
+                response_pre = split_sql(response_pre[0])
             if len(response_pre) < 3:
                 max_try -= 1
                 print(f"{self.sql_id}: Few sqls, retry preparation.")
@@ -358,7 +358,7 @@ class REFORCE:
             for key, value in result_name.items():
                 result[key.split("/")[-1].replace(".csv", ".sql")] = len(value)
         if not result:
-            if not result_all:
+            if not result_all and not all_values:
                 print(f"{search_directory} empty results")
                 return
             elif args.model_vote:
@@ -367,10 +367,10 @@ class REFORCE:
                 # print(result_all)
                 self.model_vote(result_all, sql_paths, search_directory, args, table_info, task)
             elif args.final_choose:
-                first_key = next(iter(result_all))
-                shutil.copy2(os.path.join(search_directory, first_key), self.complete_sql_save_path)
-                shutil.copy2(os.path.join(search_directory, sql_paths[first_key]), self.complete_csv_save_path) 
-                shutil.copy2(os.path.join(search_directory, first_key.replace(self.sql_save_name, self.log_save_name)), self.complete_log_save_path)               
+                csv_pth = all_values[0]
+                shutil.copy2(csv_pth.replace(".csv", ".sql"), self.complete_sql_save_path)
+                shutil.copy2(csv_pth, self.complete_csv_save_path) 
+                shutil.copy2(csv_pth.replace("result.csv", "log.log"), self.complete_log_save_path)               
             else:
                 print(f"{search_directory} Empty, return")
             return
