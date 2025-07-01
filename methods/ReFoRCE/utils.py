@@ -6,6 +6,8 @@ import math
 import re
 import sqlglot
 from sqlglot.expressions import Table, Column, CTE
+import numpy as np
+import sqlparse
 
 def extract_all_blocks(main_content, code_format):
     sql_blocks = []
@@ -228,31 +230,8 @@ def get_sqlite_path(db_path="", sql_data=None, db_id=None, task=None):
             sqlite_path = os.path.join(sql_data_path, sqlite)
     return sqlite_path
 
-def split_sql_safe(sql: str):
-    statements = []
-    current_stmt = []
-
-    for line in sql.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("--"):
-            current_stmt.append(line)
-        elif ";" in line:
-            parts = line.split(";")
-            for i, part in enumerate(parts):
-                if i < len(parts) - 1:
-                    current_stmt.append(part)
-                    statements.append("\n".join(current_stmt).strip())
-                    current_stmt = []
-                else:
-                    current_stmt.append(part)
-        else:
-            current_stmt.append(line)
-
-    if current_stmt:
-        final = "\n".join(current_stmt).strip()
-        if final:
-            statements.append(final)
-    return statements
+def split_sql(sql: str):
+    return [stmt.strip() for stmt in sqlparse.split(sql) if stmt.strip()]
 
 def clear_sample_rows(text, byte_limit=1000):
     pattern = re.compile(r"(Sample rows:\s*)(.*?)(\n-{10,}\n)", re.DOTALL)
@@ -264,24 +243,17 @@ def clear_sample_rows(text, byte_limit=1000):
 
         try:
             data = json.loads(content)
-            # if isinstance(data, list):
-            #     for row in data:
-            #         for k, v in row.items():
-            #             if isinstance(v, str):
-            #                 v_bytes = v.encode("utf-8")
-            #                 if len(v_bytes) > byte_limit:
-            #                     print("Right json")
-            #                     if digit_entropy_ratio(v_bytes[:byte_limit//10]) < 0.3:
-            #                         row[k] = v_bytes[:1000].decode("utf-8", errors="ignore")
-            #                     else:
-            #                         row[k] = v_bytes[:byte_limit//10].decode("utf-8", errors="ignore")
+            if isinstance(data, list):
+                for row in data:
+                    for k, v in row.items():
+                        if isinstance(v, str):
+                            v_bytes = v.encode("utf-8")
+                            if len(v_bytes) > byte_limit:
+                                row[k] = v_bytes[:1000].decode("utf-8", errors="ignore")
             trimmed_json = json.dumps(data, ensure_ascii=False, indent=2)
             return prefix + trimmed_json + "\n" + suffix
         except Exception as e:
-            # print("Err in sample rows", e)
-            if digit_entropy_ratio(content[:byte_limit]) < 0.3:
-                return prefix + content[:1000] + suffix
-            return prefix + content[:byte_limit] + suffix
+            return prefix + content[:byte_limit*10] + suffix
 
     return pattern.sub(trim_block, text)
 
@@ -398,3 +370,38 @@ def clear_byte(rows):
             if isinstance(v, str) and "bytearray(b" in v:
                 i[k] = "bytearray(b'...')"
     return rows
+
+def clear_tb(tb):
+    return tb.replace("\"", "").replace("`", "").upper()
+
+def extract_code_blocks(text: str, tag: str):
+    pattern = rf"```{tag}\s*\n(.*?)```"
+    matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
+    return [match.strip() for match in matches]
+
+def get_metrics(ce_json):
+    ce_recall_tbs = []
+    ce_precision_tbs = []
+    ce_recall_cols = []
+    ce_precision_cols = []
+    for ce in ce_json:
+        ce_recall_tb = ce["recall_tb"] if ce["recall_tb"] is not None else 1
+        ce_precision_tb = ce["precision_tb"] if ce["precision_tb"] is not None else 1
+        ce_recall_col = ce["recall_col"] if ce["recall_col"] is not None else 1 
+        ce_precision_col = ce["precision_col"] if ce["precision_col"] is not None else 1
+
+        ce_recall_tbs.append(ce_recall_tb)
+        ce_precision_tbs.append(ce_precision_tb)
+        ce_recall_cols.append(ce_recall_col)
+        ce_precision_cols.append(ce_precision_col)
+
+    print(f"""
+P(recall_tb == 1):    {np.mean(np.array(ce_recall_tbs) == 1):.4f}
+P(precision_tb == 1): {np.mean(np.array(ce_precision_tbs) == 1):.4f}
+P(recall_col == 1):   {np.mean(np.array(ce_recall_cols) == 1):.4f}
+P(precision_col == 1):{np.mean(np.array(ce_precision_cols) == 1):.4f}
+AVG recall_tb:        {np.mean(ce_recall_tbs):.4f}
+AVG precision_tb:     {np.mean(ce_precision_tbs):.4f}
+AVG recall_col:       {np.mean(ce_recall_cols):.4f}
+AVG precision_col:    {np.mean(ce_precision_cols):.4f}
+    """)
