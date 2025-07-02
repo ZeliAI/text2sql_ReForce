@@ -184,7 +184,7 @@ def matching_at_same_position(s1, s2):
     matches = [s1[i] for i in range(min_length) if s1[i] == s2[i]]
     return "".join(matches)
 
-def get_dictionary(task):
+def get_dictionary(db_path, task):
     json_path_lite = "../../spider2-lite/spider2-lite.jsonl"
     json_path_snow = "../../spider2-snow/spider2-snow.jsonl"
     task_dict = {}
@@ -206,7 +206,7 @@ def get_dictionary(task):
                 elif task == "lite":
                     task_dict[lite['instance_id']] = lite['question'] + "\nAnother way to say it: " + snow["instruction"]
 
-    dictionaries = task_dict.keys()
+    dictionaries = [entry for entry in os.listdir(db_path) if os.path.isdir(os.path.join(db_path, entry))]
     return dictionaries, task_dict
 
 def get_db_id(db_path, ex_id):
