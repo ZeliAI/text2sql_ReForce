@@ -301,10 +301,7 @@ def compress_ddl(example_folder, add_description=False, add_sample_rows=False, r
                             external_knowledge = "Retrieved columns and values: " + str(sl_info['L_values']) if sl_info['L_values'] else ""
                 table_names, prompts = get_sqlite_data(sqlite_path, entry, add_description=add_description, add_sample_rows=add_sample_rows, gold_table_names=gold_table_names, gold_column_names=gold_column_names)
             with open(os.path.join(entry1_path, "prompts.txt"), "w") as f:
-                if len(prompts) > THRESHOLD:
-                    # print(f"{entry} len before clearing sample rows1: {len(prompts)}")
-                    prompts = clear_sample_rows(prompts, byte_limit=10000)
-                    # print(f"sample rows cleared len1: {len(prompts)}")                     
+                prompts = clear_sample_rows(prompts, byte_limit=1000)
                 if len(prompts) > THRESHOLD and clear_long_eg_des:
                     # print(f"{entry} len before clearing description: {len(prompts)}")
                     prompts = clear_description(prompts)
