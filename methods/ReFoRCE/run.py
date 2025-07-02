@@ -271,5 +271,5 @@ if __name__ == '__main__':
                 full_db_id[instance_id] = example["db_id"]     
                 full_gold_sql[instance_id] = example["SQL"]                     
     else:
-        dictionaries, task_dict = get_dictionary(args.db_path, args.task)
+        dictionaries, task_dict = get_dictionary(args.task)
     main(args)

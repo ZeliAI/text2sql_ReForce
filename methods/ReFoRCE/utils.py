@@ -184,22 +184,29 @@ def matching_at_same_position(s1, s2):
     matches = [s1[i] for i in range(min_length) if s1[i] == s2[i]]
     return "".join(matches)
 
-def get_dictionary(db_path, task):
-    json_path = os.path.join(db_path, f"spider2-{task}.jsonl")
-    # json_path = "../../spider2-lite/spider2-lite.jsonl"
+def get_dictionary(task):
+    json_path_lite = "../../spider2-lite/spider2-lite.jsonl"
+    json_path_snow = "../../spider2-snow/spider2-snow.jsonl"
     task_dict = {}
-    with open(json_path) as f:
-        for line in f:
-            line_js = json.loads(line)
-            if task == "snow":
-                task_dict[line_js['instance_id']] = line_js['instruction']
-                # if not line_js['instance_id'].startswith("sf"):
-                #     line_js['instance_id'] = "sf_"+line_js['instance_id']
-                # task_dict[line_js['instance_id']] = line_js['question']
-            elif task == "lite":
-                task_dict[line_js['instance_id']] = line_js['question']
+    with open(json_path_lite) as f:
+        lite_task = [json.loads(i) for i in f]
+    with open(json_path_snow) as f:
+        snow_task = [json.loads(i) for i in f]
 
-    dictionaries = [entry for entry in os.listdir(db_path) if os.path.isdir(os.path.join(db_path, entry))]
+    for lite in lite_task:
+        for snow in snow_task:
+            if lite["instance_id"].startswith("sf"):
+                example_id = lite["instance_id"]
+            else:
+                example_id = "sf_" + lite["instance_id"]
+
+            if example_id == snow["instance_id"]:
+                if task == "snow":
+                    task_dict[snow['instance_id']] = lite['question'] + "\nAnother way to say it: " + snow["instruction"]
+                elif task == "lite":
+                    task_dict[lite['instance_id']] = lite['question'] + "\nAnother way to say it: " + snow["instruction"]
+
+    dictionaries = task_dict.keys()
     return dictionaries, task_dict
 
 def get_db_id(db_path, ex_id):
