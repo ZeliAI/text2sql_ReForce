@@ -292,7 +292,7 @@ class REFORCE:
         max_dict = {k: v for k, v in result.items() if v == max_value}
         # print(max_dict)
 
-        prompt = f"You are gieven DB info, task and candidate SQLs and thier results. You should choose the most correct one based on database info:\n{table_info}. The task is: {task}. Here are some candidate sqls and answers: \n"
+        prompt = f"You are gieven DB info, task and candidate SQLs and their results. You should choose the most correct one based on database info:\n{table_info}. The task is: {task}. Here are some candidate sqls and answers: \n"
         for sql, counts in max_dict.items():
             sql_path = os.path.join(search_directory, sql)
             csv_path = os.path.join(search_directory, sql_paths[sql])
