@@ -12,7 +12,7 @@ import sys
 csv.field_size_limit(sys.maxsize)
 
 class REFORCE:
-    def __init__(self, db_path, sql_data, search_directory, prompt_class: Type[Prompts], sql_env: Type[SqlEnv]=None, chat_session_pre: Type[GPTChat]=None, chat_session: Type[GPTChat]=None, log_save_path=None, db_id=None, task=None):
+    def __init__(self, db_path, sql_data, search_directory, prompt_class: Type[Prompts], sql_env: Type[SqlEnv]=None, chat_session_pre=None, chat_session=None, log_save_path=None, db_id=None, task=None):
         self.csv_save_name = "result.csv"
         self.sql_save_name = "result.sql"
         self.log_save_name = "log.log"
@@ -53,7 +53,7 @@ class REFORCE:
             if isinstance(results, str) and results != self.empty_result:
                 result_dic['sql'] = sql
                 result_dic['res'] = results
-                # self.chat_session_pre.messages.append({"role": "user", "content": f"Successfully executed. SQL:\n{sql}\nResults:\n{results}"})
+                self.chat_session_pre.messages[-1]["content"] += f"\nSuccessfully executed. \nResults:\n{results}"
                 logger.info("[Successfully executed]\n" +  f"Successfully executed. SQL:\n{sql}\nResults:\n{results}" + "\n[Successfully executed]")
                 result_dic_list.append(result_dic)
             else:
@@ -80,7 +80,7 @@ class REFORCE:
                 if isinstance(results, str) and results != self.empty_result:
                     error_rec.append(1)
                     if sqls != []:
-                        response = self.chat_session_pre.get_model_response(self.prompt_class.get_exploration_refine_prompt(sql, corrected_sql, sqls), "sql")
+                        response = self.chat_session_pre.get_model_response(self.prompt_class.get_exploration_refine_prompt(sql, corrected_sql, sqls, results), "sql")
 
                         if isinstance(response, list) and response != []:
                             response_sqls = []
@@ -103,7 +103,7 @@ class REFORCE:
                     continue
                 result_dic['sql'] = corrected_sql
                 result_dic['res'] = results
-                # self.chat_session_pre.messages.append({"role": "user", "content": f"Successfully corrected. SQL:\n{corrected_sql}\nResults:\n{results}"})
+                self.chat_session_pre.messages[-1]["content"] += f"\nSuccessfully executed. \nResults:\n{results}"
                 logger.info("[Successfully corrected]\n" +  f"Successfully executed. SQL:\n{sql}\nResults:\n{results}" + "\n[Successfully corrected]")
         return result_dic_list
 
@@ -120,7 +120,7 @@ class REFORCE:
         logger.info("[Corrected SQL]\n" + self.chat_session_pre.messages[-1]['content'] + "\n[Corrected SQL]")
         return response
 
-    def format_answer(self, task, chat_session: Type[GPTChat]):
+    def format_answer(self, task, chat_session):
         format_prompt = self.prompt_class.get_format_prompt()
         response_csv = chat_session.get_model_response("Task: " + task + format_prompt, "csv")
         response_csv = "```csv\n"+response_csv[0].split("\n")[0]+"\n```"
@@ -253,7 +253,7 @@ class REFORCE:
                 self_refine_prompt = self_consistency_prompt
             
             else:
-                self_refine_prompt = f"Input sql:\n{response}\nThe error information is:\n" + str(executed_result) + "\nPlease correct it and output only 1 complete SQL query."
+                self_refine_prompt = f"The error information is:\n" + str(executed_result) + "\nPlease correct it and output only 1 complete SQL query."
 
             itercount += 1
 
@@ -349,7 +349,7 @@ class REFORCE:
                     for v in all_values:
                         v_df = pd.read_csv(v)
                         c_df = pd.read_csv(complete_value)
-                        if v != complete_value and is_valid_result(v_df) and compare_pandas_table(v_df, c_df, ignore_order=True) and v_df.shape == c_df.shape:
+                        if v != complete_value and is_valid_result(v_df, args.do_column_exploration) and compare_pandas_table(v_df, c_df, ignore_order=True) and v_df.shape == c_df.shape:
                             same_ans += 1
                             result_name[v] = result_name.get(v, []) + [complete_value]
                         # print(result)

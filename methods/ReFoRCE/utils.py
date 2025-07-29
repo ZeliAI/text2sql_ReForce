@@ -185,26 +185,18 @@ def matching_at_same_position(s1, s2):
     return "".join(matches)
 
 def get_dictionary(db_path, task):
-    json_path_lite = "../../spider2-lite/spider2-lite.jsonl"
-    json_path_snow = "../../spider2-snow/spider2-snow.jsonl"
+    json_path = os.path.join(db_path, f"spider2-{task}.jsonl")
     task_dict = {}
-    with open(json_path_lite) as f:
-        lite_task = [json.loads(i) for i in f]
-    with open(json_path_snow) as f:
-        snow_task = [json.loads(i) for i in f]
-
-    for lite in lite_task:
-        for snow in snow_task:
-            if lite["instance_id"].startswith("sf"):
-                example_id = lite["instance_id"]
-            else:
-                example_id = "sf_" + lite["instance_id"]
-
-            if example_id == snow["instance_id"]:
-                if task == "snow":
-                    task_dict[snow['instance_id']] = lite['question'] + "\nAnother way to say it: " + snow["instruction"]
-                elif task == "lite":
-                    task_dict[lite['instance_id']] = lite['question'] + "\nAnother way to say it: " + snow["instruction"]
+    with open(json_path) as f:
+        for line in f:
+            line_js = json.loads(line)
+            if task == "snow":
+                task_dict[line_js['instance_id']] = line_js['instruction']
+                # if not line_js['instance_id'].startswith("sf"):
+                #     line_js['instance_id'] = "sf_"+line_js['instance_id']
+                # task_dict[line_js['instance_id']] = line_js['question']
+            elif task == "lite":
+                task_dict[line_js['instance_id']] = line_js['question']
 
     dictionaries = [entry for entry in os.listdir(db_path) if os.path.isdir(os.path.join(db_path, entry))]
     return dictionaries, task_dict
@@ -227,6 +219,9 @@ def get_sqlite_path(db_path="", sql_data=None, db_id=None, task=None):
             return os.path.join(local_db_pth, db_id+".sqlite")
         elif task == "BIRD":
             local_db_pth = "../../data/BIRD/dev_databases"
+            return os.path.join(local_db_pth, db_id, db_id+".sqlite")
+        elif task == "spider":
+            local_db_pth = "../../data/spider/test_database"
             return os.path.join(local_db_pth, db_id, db_id+".sqlite")
     if not db_path:
         return ""
@@ -310,7 +305,7 @@ def extract_column_names(sql: str) -> list[str]:
             column_names.append(column_name)
     return column_names
 
-def is_valid_result(df_csv):
+def is_valid_result(df_csv, do_column_exploration):
     df_csv = df_csv.fillna("")
     df_csv_str = df_csv.astype(str)
     nested_val = [(item) for i, row in enumerate(df_csv.values.tolist()) for j, item in enumerate(row) if isinstance(item, str) and '\n' in item in item]
@@ -318,7 +313,7 @@ def is_valid_result(df_csv):
     if nested_val:
         return False
 
-    if ((df_csv_str == "0") | (df_csv_str == "")).all().any():
+    if ((df_csv_str == "0") | (df_csv_str == "")).all().any() and not do_column_exploration:
         return False
 
     return True
@@ -412,3 +407,15 @@ AVG precision_tb:     {np.mean(ce_precision_tbs):.4f}
 AVG recall_col:       {np.mean(ce_recall_cols):.4f}
 AVG precision_col:    {np.mean(ce_precision_cols):.4f}
     """)
+
+def is_same_schema(repre_js_pth, js_pth):
+    with open(repre_js_pth) as f:
+        repre = json.load(f)
+    with open(js_pth) as f:
+        js = json.load(f)
+    if set(repre["column_names"]) == set(js["column_names"]):
+        return True
+    print("The difference between two sets:")
+    print(set(repre["column_names"]) - set(js["column_names"]))
+    print(set(js["column_names"]) - set(repre["column_names"]))
+    return False

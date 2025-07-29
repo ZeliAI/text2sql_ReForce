@@ -48,9 +48,9 @@ def execute(question, table_info, args, csv_save_path, log_save_path, sql_save_p
     chat_session_ex = None
     chat_session = None
     if args.do_column_exploration:
-        chat_session_ex = GPTChat(args.azure, args.column_exploration_model, temperature=args.temperature)
+        chat_session_ex = ChatClass(args.azure, args.column_exploration_model, temperature=args.temperature)
     if args.generation_model:
-        chat_session = GPTChat(args.azure, args.generation_model, temperature=args.temperature)
+        chat_session = ChatClass(args.azure, args.generation_model, temperature=args.temperature)
 
     # agent
     agent = REFORCE(args.db_path, sql_data, search_directory, prompt_all, sql_env, chat_session_ex, chat_session, sql_data+'/'+log_save_path, db_id, task=args.task)
@@ -121,12 +121,14 @@ def process_sql_data(sql_data):
             return
 
     # Get BIRD gold res
-    if args.task == "BIRD":
-        gold_pth = os.path.join(args.BIRD_gold_result_path, sql_data+".csv")
+    if args.task in ["BIRD", "spider"]:
+        os.makedirs(args.gold_result_path, exist_ok=True)
+        gold_pth = os.path.join(args.gold_result_path, sql_data+".csv")
         if not os.path.exists(gold_pth):
             sql_env = SqlEnv()
             res = sql_env.execute_sql_api(full_gold_sql[sql_data], sql_data, gold_pth, sqlite_path=get_sqlite_path(args.db_path, sql_data, full_db_id[sql_data], args.task), timeout=1200)
-            assert res == "0", (sql_data, res)
+            if res != "0":
+                print(sql_data, res)
 
     # Get table information
     table_info = get_table_info(args.db_path, sql_data, agent_format.api, clear_des=True, full_tb_info=full_tb_info)
@@ -142,7 +144,7 @@ def process_sql_data(sql_data):
                 format_csv = "```sql\n"+f.read().split("\n")[0]+"\n```"
         else:
             # Initialize sessions at the beginning of each thread
-            chat_session_format = GPTChat(args.azure, args.format_model, temperature=args.temperature)
+            chat_session_format = ChatClass(args.azure, args.format_model, temperature=args.temperature)
             # Format answer and update the pre-chat session
             format_csv = agent_format.format_answer(question, chat_session_format)
     else:
@@ -158,7 +160,11 @@ def process_sql_data(sql_data):
             log_pathi = str(i) + agent_format.log_save_name
             sql_save_pathi = str(i) + agent_format.sql_save_name
             sql_paths[sql_save_pathi] = csv_save_pathi
-
+            
+            # execute(question, table_info, args,
+            #         csv_save_pathi, log_pathi, sql_save_pathi,
+            #         search_directory, format_csv, sql_data
+            # )
             thread = threading.Thread(
                 target=execute,
                 args=(
@@ -200,7 +206,7 @@ def process_sql_data(sql_data):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, default="snow", choices=["snow", "lite", "BIRD"],)
+    parser.add_argument('--task', type=str, default="snow", choices=["snow", "lite", "BIRD", "spider"],)
     parser.add_argument('--subtask', type=str, default=None, choices=["sqlite"])
     parser.add_argument('--db_path', type=str, default=None)
     parser.add_argument('--output_path', type=str, default="output/o3-snow-log")
@@ -234,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=16)
 
     parser.add_argument('--omnisql_format_pth', type=str, default=None)
-    parser.add_argument('--BIRD_gold_result_path', type=str, default="../../data/BIRD/gold_result")
+    parser.add_argument('--gold_result_path', type=str, default="../../data/BIRD/gold_result")
     args = parser.parse_args()
     prompt_all = Prompts()
 
@@ -255,7 +261,7 @@ if __name__ == '__main__':
                     task_dict[example["instance_id"]] = example["question"]
                     full_tb_info[example["instance_id"]] = example["db_desc"]
                     full_db_id[example["instance_id"]] = example["db_id"]
-        elif args.task == "BIRD":
+        elif args.task in ["BIRD", "spider"]:
             with open(args.omnisql_format_pth) as f:
                 data = json.load(f)
             dictionaries = []
@@ -264,12 +270,15 @@ if __name__ == '__main__':
             
             for example in data:
                 q_id = example["question_id"]
-                instance_id = f"local_BIRD_{q_id:04d}"
+                instance_id = f"local_{args.task}_{q_id:04d}"
                 dictionaries.append(instance_id)
                 task_dict[instance_id] = example["question"]
                 full_tb_info[instance_id] = example["input_seq"]
                 full_db_id[instance_id] = example["db_id"]     
-                full_gold_sql[instance_id] = example["SQL"]                     
+                full_gold_sql[instance_id] = example["SQL"]              
     else:
         dictionaries, task_dict = get_dictionary(args.db_path, args.task)
+
+    if args.generation_model is not None:
+        ChatClass = GPTChat
     main(args)
