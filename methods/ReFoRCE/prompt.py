@@ -81,28 +81,30 @@ class Prompts:
         return format_prompt
 
     def get_exploration_prompt(self, api, table_struct):
-        exploration_prompt = f"Write at most 10 {api} SQL queries for simple to complex ones to final answer in format like:\n {self.get_prompt_dialect_basic(api)}\nin ```sql``` code block to have an understanding of values in related columns.\n"
-        exploration_prompt += "Each query should be different. Don't query about any SCHEMA or checking data types. You can write SELECT query only. Try to use DISTINCT. For each SQL LIMIT 20 rows.\n"
+        exploration_prompt = f"Write at most 10 {api} simple SQL queries in format like:\n {self.get_prompt_dialect_basic(api)}\nin ```sql``` code block to have an understanding of values in related columns.\n"
+        exploration_prompt += "Each query should be different. Don't query about any SCHEMA or checking data types. You can write SELECT query only. Try to use DISTINCT. Don't output the final answer.\n"
         exploration_prompt += "Write annotations to describe each SQL, format like ```sql\n--Description: \n```.\n"
+
+        # exploration_prompt += "When exploring a table, first generate a SQL query to view 5 distinct rows, then generate another SQL query with appropriate conditions.\n"
 
         exploration_prompt += self.get_prompt_dialect_nested(api)
                 
-        exploration_prompt += self.get_prompt_convert_symbols()
+        # exploration_prompt += self.get_prompt_convert_symbols()
         
-        exploration_prompt += self.get_prompt_dialect_string_matching(api)
+        # exploration_prompt += self.get_prompt_dialect_string_matching(api)
         
-        exploration_prompt += "For time-related queries, given the variety of formats, avoid using time converting functions unless you are certain of the specific format being used.\n"
+        # exploration_prompt += "For time-related queries, given the variety of formats, avoid using time converting functions unless you are certain of the specific format being used.\n"
         
-        exploration_prompt += "When generating SQLs, be aware of quotation matching: 'Vegetarian\"; You sometimes match \' with \" which may cause an error.\n"
+        # exploration_prompt += "When generating SQLs, be aware of quotation matching: 'Vegetarian\"; You sometimes match \' with \" which may cause an error.\n"
 
-        exploration_prompt += f"You can only use tables in {table_struct}"
+        # exploration_prompt += f"You can only use tables in {table_struct}"
         
-        exploration_prompt += self.get_prompt_knowledge()
+        # exploration_prompt += self.get_prompt_knowledge()
 
         return exploration_prompt
 
-    def get_exploration_refine_prompt(self, sql, corrected_sql, sqls):
-        return f"```sql\n{sql}``` is corrected to ```sql\n{corrected_sql}```. Please correct other sqls if they have similar errors. SQLs: {sqls}. For each SQL, answer in ```sql\n--Description: \n``` format.\n"
+    def get_exploration_refine_prompt(self, sql, corrected_sql, sqls, res):
+        return f"```sql\n{sql}``` is corrected to ```sql\n{corrected_sql}```. And the result is: \n{res}\n Please correct other sqls based on results if they have similar errors. Otherwise don't modify the SQL. SQLs: {sqls}. For each SQL, answer in ```sql\n--Description: \n``` format.\n"
 
     def get_exploration_self_correct_prompt(self, sql, error):
         return f"Input sql:\n{sql}\nThe error information is:\n" + str(error) + "\nPlease correct it based on previous context and output the thinking process with only one sql query in ```sql\n--Description: \n``` format. Don't just analyze without SQL or output several SQLs.\n"
@@ -115,8 +117,9 @@ class Prompts:
                     db_details = table_info,
                     question = question
                 )
-            elif task == "BIRD":
-                return table_info
+            elif task in ["BIRD", "spider"]:
+                ce = "Some few-shot examples after column exploration may be helpful:\n" + pre_info if pre_info else ""
+                return table_info + "\n" + ce
         refine_prompt = table_info + "\n"
         # refine_prompt += "Begin Exploring Related Columns\n" + response_pre_txt + "\nRefined SQLs and results:\n" + pre_info + "End Exploring Related Columns\n" if pre_info else ""
         refine_prompt += "Some few-shot examples after column exploration may be helpful:\n" + pre_info if pre_info else ""
@@ -129,16 +132,16 @@ class Prompts:
         refine_prompt += self.get_prompt_dialect_list_all_tables(table_struct, api)
         # refine_prompt += self.get_prompt_fuzzy_query()
 
-        if api == "snowflake":
-            refine_prompt += "When using ORDER BY xxx DESC, add NULLS LAST to exclude null records: ORDER BY xxx DESC NULLS LAST.\n"
+        # if api == "snowflake":
+        #     refine_prompt += "When using ORDER BY xxx DESC, add NULLS LAST to exclude null records: ORDER BY xxx DESC NULLS LAST.\n"
         # refine_prompt += "When using ORDER BY, if there are duplicate values in the primary sort column, sort by an additional column as a secondary criterion.\n"
         
         # Specific:
-        refine_prompt += "When asked something without stating name or id, return both of them. e.g. Which products ...? The answer should include product_name and product_id.\n"
-        refine_prompt += "When asked percentage decrease, you should return a positive value. e.g. How many percentage points in 2021 decrease compared to ...? The answer should be a positive value indicating the decresed number. Try to use ABS().\n"
-        refine_prompt += "If asked two tables, you should reply with the last one instead of combining two tables. e.g. Identifying the top five states ... examine the state that ranks fourth overall and identify its top five counties. You should only answer top five counties.\n"
-        if api == "snowflake":
-            refine_prompt += "Use ST_DISTANCE to calculate distance between two geographic points for more accurate answer.\n"
+        # refine_prompt += "When asked something without stating name or id, return both of them. e.g. Which products ...? The answer should include product_name and product_id.\n"
+        # refine_prompt += "When asked percentage decrease, you should return a positive value. e.g. How many percentage points in 2021 decrease compared to ...? The answer should be a positive value indicating the decresed number. Try to use ABS().\n"
+        # refine_prompt += "If asked two tables, you should reply with the last one instead of combining two tables. e.g. Identifying the top five states ... examine the state that ranks fourth overall and identify its top five counties. You should only answer top five counties.\n"
+        # if api == "snowflake":
+        #     refine_prompt += "Use ST_DISTANCE to calculate distance between two geographic points for more accurate answer.\n"
         refine_prompt += self.get_prompt_decimal_places()
         
         return refine_prompt
