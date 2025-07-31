@@ -4,13 +4,18 @@ from tqdm import tqdm
 import argparse
 import shutil
 import sqlite3
-from utils import remove_digits, is_file, clear_description, clear_sample_rows, extract_column_names, extract_real_table_names, get_api_name, clear_name, remove_declare_lines, clear_byte
+from utils import remove_digits, is_file, clear_description, clear_sample_rows, extract_column_names, extract_real_table_names, get_api_name, clear_name, remove_declare_lines, clear_byte, is_same_schema
 import json
 pd.set_option('display.max_colwidth', None)
 THRESHOLD = 200000
-WRONG_GOLD_TABLES = ["bq095", "bq350", "bq379", "bq396", "sf_bq084", "sf_bq200","sf_bq226", "sf_bq295", "sf_bq358"]
-SKIP_GOLD_SQLS = ["bq350", "local039", "bq095", "bq374", "bq379", "bq396", "bq403", "bq406", "sf_bq233", "sf_bq273", "sf_local039", "sf_bq295"]
-def process_ddl(ddl_file):
+
+def process_ddl(ddl_file, db_name_path):
+    table_names = ddl_file['table_name'].to_list()
+    for i in range(len(ddl_file)):
+        if not os.path.exists(os.path.join(db_name_path, table_names[i]+".json")):
+            ddl_file = ddl_file.drop(index=i)
+
+    ddl_file.reset_index(drop=True, inplace=True)
     table_names = ddl_file['table_name'].to_list()
     representatives = {}
     for i in range(len(ddl_file)):
@@ -27,6 +32,11 @@ def process_ddl(ddl_file):
             else:
                 # representatives[table_names[i]] = [table_names[i]]
                 del representatives[remove_digits(table_names[i])]
+
+    for i in range(len(ddl_file)):
+        if remove_digits(table_names[i]) in representatives:
+            if not is_same_schema(os.path.join(db_name_path, representatives[remove_digits(table_names[i])][0]+".json"), os.path.join(db_name_path, table_names[i]+".json")):
+                print(f"These two schemas are not the same in {db_name_path}: {representatives[remove_digits(table_names[i])][0]}, {table_names[i]}.")
     return ddl_file, representatives
 
 def process_ddl_gold(ddl_file, gold_table_names, entry=None):
@@ -138,14 +148,11 @@ def compress_ddl(example_folder, add_description=False, add_sample_rows=False, r
                 for ex in gold:
                     if ex['instance_id'] == entry:
                         gold_table_names = set([i.upper() for i in ex["gold_tables"]])
-                if gold_table_names is None or entry in WRONG_GOLD_TABLES:
+                if gold_table_names is None:
                     shutil.rmtree(os.path.join(args.example_folder, entry))
                     print("Miss gold table", entry)
                     continue
             elif use_gold_schema:
-                if entry in SKIP_GOLD_SQLS:
-                    shutil.rmtree(os.path.join(args.example_folder, entry))
-                    continue
                 for ex in os.listdir(args.gold_sql_pth):
                     if ex.replace(".sql", "") == entry:
                         with open(os.path.join(args.gold_sql_pth, ex)) as f:
@@ -198,7 +205,7 @@ def compress_ddl(example_folder, add_description=False, add_sample_rows=False, r
                                     elif use_gold_schema:
                                         ddl_file, representatives = process_ddl_gold_schema(ddl_file, gold_table_names, entry)
                                     elif rm_digits:
-                                        ddl_file, representatives = process_ddl(ddl_file)
+                                        ddl_file, representatives = process_ddl(ddl_file, db_name_path)
                                     table_name_list = ddl_file['table_name'].to_list()
                                     ddl_file.reset_index(drop=True, inplace=True)
                                     for i in range(len(table_name_list)):
@@ -209,9 +216,8 @@ def compress_ddl(example_folder, add_description=False, add_sample_rows=False, r
                                                 with open(os.path.join(db_name_path, db_name+'.'+table_name_list[i]+".json")) as f:
                                                     table_json = json.load(f)
                                         else:
-                                            # print(entry, f"No table: {os.path.join(db_name_path, table_name_list[i])}")
-                                            continue
-
+                                            print(entry, f"No table: {os.path.join(db_name_path, table_name_list[i])}")
+                                            continue                                        
                                         if use_gold_table:
                                             if table_json["table_fullname"].upper() not in gold_table_names and not representatives:
                                                 continue
@@ -255,6 +261,12 @@ def compress_ddl(example_folder, add_description=False, add_sample_rows=False, r
                                                     prompts += "Column name: " + table_json[f"{column_prefix}names"][j] + " Type: " + table_json[f"{column_prefix}types"][j] + table_des +"\n"
                                             else:
                                                 prompts += "Column name: " + table_json[f"{column_prefix}names"][j] + " Type: " + table_json[f"{column_prefix}types"][j] + table_des +"\n"
+                                        if representatives is not None:
+                                            if remove_digits(table_name_list[i]) in representatives:
+                                                if len(representatives[remove_digits(table_name_list[i])]) > 1:
+                                                    assert len(representatives[remove_digits(table_name_list[i])]) >= 10, representatives[remove_digits(table_name_list[i])]
+                                                    prompts += f"Some other tables have the similar structure: {representatives[remove_digits(table_name_list[i])]}\n"
+                                                    table_dict[project_name_][db_name_] += representatives[remove_digits(table_name_list[i])]
                                         if add_sample_rows:                                            
                                             if reduce_col and ddl_sl_flag:
                                                 sample_rows = [{col: row[col] for col in extract_column_names(col_names) if col in row} for row in table_json["sample_rows"]]
@@ -273,12 +285,6 @@ def compress_ddl(example_folder, add_description=False, add_sample_rows=False, r
                                             sample_rows = clear_byte(sample_rows)
                                             prompts += "Sample rows:\n" + str(sample_rows) + "\n"
                                         table_dict[project_name_][db_name_] += [table_name_list[i]]
-                                        if representatives is not None:
-                                            if remove_digits(table_name_list[i]) in representatives:
-                                                if len(representatives[remove_digits(table_name_list[i])]) > 1:
-                                                    assert len(representatives[remove_digits(table_name_list[i])]) >= 10, representatives[remove_digits(table_name_list[i])]
-                                                    prompts += f"Some other tables have the similar structure: {representatives[remove_digits(table_name_list[i])]}\n"
-                                                    table_dict[project_name_][db_name_] += representatives[remove_digits(table_name_list[i])]
                                         prompts += "\n" + "-" * 50 + "\n"
                                 elif schema_name == "json":
                                     with open(schema_name_path) as f:
