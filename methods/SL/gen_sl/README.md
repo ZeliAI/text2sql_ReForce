@@ -22,6 +22,8 @@ Despite being a simple baseline, Method 1 with **GPT-4o** achieves perfect table
 
 With more diverse SQLs generated from different models, Method 2 achieved $P(tb\_recall == 1) = 543 / 547 = 99.27\%$.
 
+Despite achieving high recall, there is limited improvement in accuracy, as LLMs like o3 already possess table-level schema linking capabilities. The main advantage of the gen_sl method lies in its ability to include more relevant information in prompts, reduce LLM calling costs, and narrow down the set of target tables for value retrieval.
+
 The script for running on linked json files by gen_sl can be found at `methods/ReFoRCE/scripts/run_main_gen_sl.sh`:
 ```
 bash scripts/run_main_gen_sl.sh --task snow --model o3 --azure --linked_json_pth ../../data/parsed_logs_snow_4o+o3+o4-mini.json

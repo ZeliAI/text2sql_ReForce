@@ -5,6 +5,8 @@
 </p>
 
 ## News 🗞️
+- **2025.07:** We add a simple table-level schema linking method that achieves high recall, details in [README.md](methods/SL/gen_sl/README.md).
+
 - **2025.05:** We are excited to release the formal version of **ReFoRCE**!
 
 - **2025.03:** Our paper has been accepted to the ICLR 2025 VerifAI Workshop!
