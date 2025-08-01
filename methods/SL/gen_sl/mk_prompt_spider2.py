@@ -117,7 +117,7 @@ def main(args):
     for example in tqdm(dictionaries):
         task = task_dict.get(example, "")
         prompt_pth = os.path.join(args.db_path, example, "prompts.txt")
-        if not os.path.exists(prompt_pth):
+        if not os.path.exists(prompt_pth) or os.path.getsize(prompt_pth) < args.threshold:
             continue
 
         with open(prompt_pth) as f:
@@ -161,6 +161,7 @@ if __name__ == "__main__":
     parser.add_argument("--tokenizer_name", type=str, default="Qwen/Qwen2.5-Coder-1.5B-Instruct", help="Huggingface model name for tokenizer")
     parser.add_argument("--use_prompt_ce", action="store_true", help="Use PROMPT_CE template instead of default")
     parser.add_argument("--snow_json_path", type=str, required=True, help="Path to Spider2 Snow input JSONL file.")
+    parser.add_argument("--threshold", type=int, default=0, help="Do schema linking only on prompt size > threshold.")
 
     args = parser.parse_args()
     main(args)

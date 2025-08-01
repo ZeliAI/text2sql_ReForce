@@ -28,6 +28,15 @@ def merge_predictions(parsed, output_path):
 
     combined = list(eid2tbs.values())
 
+    if os.path.exists(output_path):
+        with open(output_path) as f:
+            original = json.load(f)
+        for i in range(len(original)):
+            for j in combined:
+                if original[i]["example_id"] == j["example_id"]:
+                    original[i] = j
+        combined = original
+
     with open(output_path, "w") as f:
         json.dump(combined, f, indent=4)
 
