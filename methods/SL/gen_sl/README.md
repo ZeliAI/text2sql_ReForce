@@ -18,9 +18,9 @@ If the reduced schema is still large, we can pferform a sencond run on large pro
 
 We release a Method 1 result generated using **GPT-4o** at `data/parsed_json_snow_gpt-4o.json` and a Method 2 result generated using logs from **GPT-4o**, **o3** and **o4-mini** at `data/parsed_logs_snow_4o+o3+o4-mini.json`.
 
-Despite being a simple baseline, Method 1 with **GPT-4o** achieves perfect table-level recall on **525 out of 547 examples**, yielding a recall rate of $P(tb\_recall == 1) = 525 / 547 = 95.98\%$.
+Despite being a simple baseline, Method 1 with **GPT-4o** achieves perfect table-level recall on **525 out of 547 examples**, yielding a recall rate of $P(tb\\_recall == 1) = 525 / 547 = 95.98\%$.
 
-With more diverse SQLs generated from different models, Method 2 achieved $P(tb\_recall == 1) = 543 / 547 = 99.27\%$.
+With more diverse SQLs generated from different models, Method 2 achieved $P(tb\\_recall == 1) = 543 / 547 = 99.27\%$.
 
 Despite achieving high recall, there is limited improvement in accuracy, as LLMs like o3 already possess table-level schema linking capabilities. The main advantage of the gen_sl method lies in its ability to include more relevant information in prompts, reduce LLM calling costs, and narrow down the set of target tables for value retrieval.
 
