@@ -29,7 +29,38 @@ from utils import (
 
 
 csv.field_size_limit(sys.maxsize)
-def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False, linking_method="naive", threshold=200000):
+
+def reduce_columns(sql: str, subset_columns: set[str]) -> str:
+
+    table_match = re.search(r'create\s+(?:or\s+replace\s+)?table\s+`?([^\s(]+)`?', sql, re.IGNORECASE)
+    assert table_match, sql
+    table_name = table_match.group(1)
+
+    columns_block_match = re.search(r'\((.*?)\)\s*(PARTITION|CLUSTER|OPTIONS|;|$)', sql, re.DOTALL | re.IGNORECASE)
+    if not columns_block_match:
+        raise ValueError("Cannot extract columns block.")
+    columns_block = columns_block_match.group(1)
+
+    lines = columns_block.splitlines()
+    filtered_lines = []
+    for line in lines:
+        line = line.strip().rstrip(',')
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        col_name = parts[0].strip('`",')
+        if clear_tb(col_name) in subset_columns:
+            filtered_lines.append(f"  {line},")
+
+    if filtered_lines:
+        filtered_lines[-1] = filtered_lines[-1].rstrip(',')
+
+    new_sql = f'CREATE TABLE {table_name} (\n' + '\n'.join(filtered_lines) + '\n);'
+    return new_sql
+
+def reduce_ddl(example_path, dictionaries, linked_json, clear_long_eg_des=False, reduce_col=False, linking_method="naive", threshold=200000):
     print("Reducing Columns")
     for eg_id in tqdm(dictionaries):
         api = get_api_name(eg_id)
@@ -126,7 +157,7 @@ def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False, linkin
             print(f"{eg_id}: All empty DDL_sl.csv, remove, table_names", table_names)
             for i in temp_file_paths:
                 os.remove(i)
-    compress_ddl(example_path, add_description=True, add_sample_rows=True, rm_digits=True, schema_linked=True, clear_long_eg_des=True, reduce_col=reduce_col)
+    compress_ddl(example_path, add_description=True, add_sample_rows=True, rm_digits=True, schema_linked=True, clear_long_eg_des=clear_long_eg_des, reduce_col=reduce_col)
 
 ask_prompt = """
 You are doing table level schema linking. Given a table with schema information and the task, you should think step by step and decide whether this table is related to the task. 
@@ -202,7 +233,7 @@ def ask_model_sl_(tb_info, task, chat_session):
 
     return linked
 
-def compute_metrics_sl(file_pth, db_path):
+def compute_metrics_sl(file_pth, db_path, threshold):
     with open(file_pth) as f:
         data = json.load(f)
     count = 0
@@ -213,7 +244,7 @@ def compute_metrics_sl(file_pth, db_path):
             if ex['instance_id'] == example:
                 gold_table = set(ex["gold_tables"])    
 
-        if os.path.getsize(os.path.join(db_path, example, "prompts.txt")) > THRESHOLD:
+        if os.path.getsize(os.path.join(db_path, example, "prompts.txt")) > threshold:
             count += 1
             pred = []
             
@@ -242,6 +273,7 @@ if __name__ == '__main__':
     parser.add_argument('--db_path', type=str, default="examples_snow")
     parser.add_argument('--linking_method', type=str, default='naive', choices=['gen', 'naive'])
     parser.add_argument('--linked_json_pth', type=str, default=None)
+    parser.add_argument('--clear_long_eg_des', action="store_true")
     parser.add_argument('--reduce_col', action="store_true")
     parser.add_argument('--gold_tb_pth', type=str, default=None)
     parser.add_argument('--gold_sql_pth', type=str, default=None)
@@ -256,6 +288,6 @@ if __name__ == '__main__':
 
             ask_model_sl(args.db_path, args.linked_json_pth)
 
-            compute_metrics_sl(args.linked_json_pth, args.db_path)
+            compute_metrics_sl(args.linked_json_pth, args.db_path, args.threshold)
     dictionaries, task_dict = get_dictionary(args.db_path, args.task)
-    reduce_ddl(args.db_path, dictionaries, args.linked_json_pth, args.reduce_col, args.linking_method, args.threshold)
+    reduce_ddl(args.db_path, dictionaries, args.linked_json_pth, args.clear_long_eg_des, args.reduce_col, args.linking_method, args.threshold)
