@@ -1,4 +1,3 @@
-from utils import search_file, get_api_name, get_dictionary, get_tb_info, get_external, compute_precision_recall, is_csv_empty, clear_name
 from reconstruct_data import remove_digits, compress_ddl
 import os
 import json
@@ -10,9 +9,26 @@ import argparse
 import sys
 import re
 import numpy as np
+import sqlglot
+from sqlglot.expressions import Column, Table
+import shutil
+
+from utils import (
+    search_file,
+    get_api_name,
+    get_dictionary,
+    get_tb_info,
+    get_external,
+    compute_precision_recall,
+    is_csv_empty,
+    clear_name,
+    clear_tb,
+    extract_code_blocks,
+    get_metrics
+)
+
+
 csv.field_size_limit(sys.maxsize)
-THRESHOLD = 200000
-DEPS_DEV_V1 = ["sf_bq016", "sf_bq062", "sf_bq063", "sf_bq028"]
 
 def reduce_columns(sql: str, subset_columns: set[str]) -> str:
 
@@ -35,7 +51,7 @@ def reduce_columns(sql: str, subset_columns: set[str]) -> str:
         if len(parts) < 2:
             continue
         col_name = parts[0].strip('`",')
-        if col_name in subset_columns:
+        if clear_tb(col_name) in subset_columns:
             filtered_lines.append(f"  {line},")
 
     if filtered_lines:
@@ -44,15 +60,14 @@ def reduce_columns(sql: str, subset_columns: set[str]) -> str:
     new_sql = f'CREATE TABLE {table_name} (\n' + '\n'.join(filtered_lines) + '\n);'
     return new_sql
 
-
-def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False):
-    print("Doing schema linking")
+def reduce_ddl(example_path, dictionaries, linked_json, clear_long_eg_des=False, reduce_col=False, linking_method="naive", threshold=200000):
+    print("Reducing Columns")
     for eg_id in tqdm(dictionaries):
         api = get_api_name(eg_id)
  
         ddl_paths = search_file(os.path.join(example_path, eg_id), "DDL.csv")
 
-        if os.path.getsize(os.path.join(example_path, eg_id, "prompts.txt")) < THRESHOLD or eg_id in DEPS_DEV_V1:
+        if os.path.getsize(os.path.join(example_path, eg_id, "prompts.txt")) < threshold:
             continue
 
         with open(linked_json) as f:
@@ -60,17 +75,26 @@ def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False):
 
         table_names = []
         columns = {}
-        for ex_id, tbs in sl.items():
-            if ex_id == eg_id:
-                for tb in tbs:
-                    if "answer" in tb:
-                        if tb["answer"] == "Y":
-                            table_names.append(tb["table name"])
-                            columns[tb["table name"]] = tb['columns']
-                    else:
-                        raise NotImplementedError
-                        print(tb)
-                        table_names.append(tb)
+        if linking_method == "naive":
+            for ex_id, tbs in sl.items():
+                if ex_id == eg_id:
+                    for tb in tbs:
+                        if "answer" in tb:
+                            if tb["answer"] == "Y":
+                                table_names.append(tb["table name"])
+                                columns[tb["table name"]] = [clear_tb(i) for i in tb['columns']]
+                        else:
+                            raise NotImplementedError
+                            print(tb)
+                            table_names.append(tb)
+        else:
+            for ex in sl:
+                if ex["example_id"] == eg_id:
+                    table_names = ex["parsed_info"]["gen_tb"]
+                    for col in ex["parsed_info"]["gen_col"]:
+                        full_tb = ".".join(col.split(".")[:-1])
+                        col_name = col.split(".")[-1]
+                        columns[full_tb] = columns.get(full_tb, []) + [col_name]
 
         if not table_names:
             print("Empty result in table_names", eg_id)
@@ -96,16 +120,17 @@ def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False):
                 row_list_all = []
                 row_list = []
                 for row in reader:
-                    assert row[-1].upper().startswith("CREATE"), row
+                    if not row[-1].upper().startswith("CREATE"):
+                        continue
                     if "." in row[0]:
                         row[0] = row[0].split(".")[-1]
 
                     json_pth = ddl_path.replace("DDL.csv", row[0].strip()+".json")
                     if os.path.exists(json_pth):
                         with open(json_pth) as f:
-                            table_fullname = json.load(f)["table_fullname"]
+                            table_fullname = clear_tb(json.load(f)["table_fullname"])
                     else:
-                        print(f"{ex_id}: {json_pth} doesn't exist")
+                        print(f"{eg_id}: {json_pth} doesn't exist")
                         continue
                     
                     if any(remove_digits(table_fullname) in item for item in table_names_no_digit):
@@ -117,7 +142,7 @@ def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False):
                         row_count += 1
 
                         if reduce_col:
-                            assert table_fullname in columns, print(table_names, table_fullname)
+                            assert table_fullname in columns, (eg_id, table_fullname)
                             row[-1] = reduce_columns(row[-1], columns[table_fullname])
                             # print("After", row)
                         row_list.append(row)
@@ -132,7 +157,7 @@ def reduce_ddl(example_path, dictionaries, linked_json, reduce_col=False):
             print(f"{eg_id}: All empty DDL_sl.csv, remove, table_names", table_names)
             for i in temp_file_paths:
                 os.remove(i)
-    compress_ddl(example_path, add_description=True, add_sample_rows=True, rm_digits=True, schema_linked=True, clear_long_eg_des=True, reduce_col=reduce_col)
+    compress_ddl(example_path, add_description=True, add_sample_rows=True, rm_digits=True, schema_linked=True, clear_long_eg_des=clear_long_eg_des, reduce_col=reduce_col)
 
 ask_prompt = """
 You are doing table level schema linking. Given a table with schema information and the task, you should think step by step and decide whether this table is related to the task. 
@@ -208,7 +233,7 @@ def ask_model_sl_(tb_info, task, chat_session):
 
     return linked
 
-def compute_metrics_sl(file_pth, db_path):
+def compute_metrics_sl(file_pth, db_path, threshold):
     with open(file_pth) as f:
         data = json.load(f)
     count = 0
@@ -219,7 +244,7 @@ def compute_metrics_sl(file_pth, db_path):
             if ex['instance_id'] == example:
                 gold_table = set(ex["gold_tables"])    
 
-        if os.path.getsize(os.path.join(db_path, example, "prompts.txt")) > THRESHOLD:
+        if os.path.getsize(os.path.join(db_path, example, "prompts.txt")) > threshold:
             count += 1
             pred = []
             
@@ -244,20 +269,25 @@ def compute_metrics_sl(file_pth, db_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--task', type=str, default="lite")
-    parser.add_argument('--db_path', type=str, default="examples_lite_full")
+    parser.add_argument('--task', type=str, default="snow")
+    parser.add_argument('--db_path', type=str, default="examples_snow")
+    parser.add_argument('--linking_method', type=str, default='naive', choices=['gen', 'naive'])
     parser.add_argument('--linked_json_pth', type=str, default=None)
+    parser.add_argument('--clear_long_eg_des', action="store_true")
     parser.add_argument('--reduce_col', action="store_true")
     parser.add_argument('--gold_tb_pth', type=str, default=None)
+    parser.add_argument('--gold_sql_pth', type=str, default=None)
+    parser.add_argument('--threshold', type=int, default=200000)
     args = parser.parse_args()
 
-    dictionaries, task_dict = get_dictionary(args.db_path, args.task)
     if args.linked_json_pth is not None and not os.path.exists(args.linked_json_pth):
-        gold_tb = args.gold_tb_pth
-        with open(gold_tb) as f:
-            gold = [json.loads(i) for i in f]
+        if args.linking_method == "naive":
+            gold_tb = args.gold_tb_pth
+            with open(gold_tb) as f:
+                gold = [json.loads(i) for i in f]
 
-        ask_model_sl(args.db_path, args.linked_json_pth)
+            ask_model_sl(args.db_path, args.linked_json_pth)
 
-        compute_metrics_sl(args.linked_json_pth, args.db_path)
-    reduce_ddl(args.db_path, dictionaries, args.linked_json_pth, args.reduce_col)
+            compute_metrics_sl(args.linked_json_pth, args.db_path, args.threshold)
+    dictionaries, task_dict = get_dictionary(args.db_path, args.task)
+    reduce_ddl(args.db_path, dictionaries, args.linked_json_pth, args.clear_long_eg_des, args.reduce_col, args.linking_method, args.threshold)
