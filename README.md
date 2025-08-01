@@ -37,6 +37,7 @@ We present ReFoRCE, a Text-to-SQL agent that tops the [Spider 2.0 leaderboard](h
     - 📄 sql.py                             -- SQL Execution Class  
     - 📄 utils.py                           -- Utility Functions  
     - 📄 *_credential.json                  -- Place Credentials Here  
+  - 📁 SL/                                  -- Other Schema Linking Methods
 - 📁 spider2-lite/                          -- Spider2-lite DB and Evaluation (copy from Spider2 Repo)  
 - 📁 spider2-snow/                          -- Spider2-snow DB and Evaluation (copy from Spider2 Repo)  
 ```
@@ -78,6 +79,11 @@ export AZURE_OPENAI_KEY=YOUR_AZURE_API_KEY
 bash scripts/run_main.sh --task snow --model o3 --azure
 ```
 
+- **(New) Run Snow with Generation Schema Linking**
+```bash
+bash scripts/run_main_gen_sl.sh --task snow --model o3 --azure --linked_json_pth ../../data/parsed_logs_snow_4o+o3+o4-mini.json
+```
+
 - **Run Lite with OPENAI_API_KEY:**
 ```bash
 export OPENAI_API_KEY=YOUR_API_KEY
@@ -95,7 +101,7 @@ These scripts also show results after:
 1. Self-refinement + Majority Voting.
 2. Self-refinement + Majority Voting + Column Exploration + Rerun.
 3. Random vote for tie.
-4. Random vote final_choose
+4. Random vote final_choose.
 
 - **Run Pass@k Evaluation**
 ```bash
