@@ -238,6 +238,8 @@ if __name__ == '__main__':
     parser.add_argument('--rerun', action="store_true")
     parser.add_argument('--overwrite_unfinished', action="store_true")
     parser.add_argument('--num_workers', type=int, default=16)
+    parser.add_argument('--limit_tasks', type=int, default=0, help="Run at most this many examples after filtering. 0 means all.")
+    parser.add_argument('--task_offset', type=int, default=0, help="Skip this many examples after filtering.")
 
     parser.add_argument('--omnisql_format_pth', type=str, default=None)
     parser.add_argument('--gold_result_path', type=str, default="../../data/BIRD/gold_result")
@@ -278,6 +280,14 @@ if __name__ == '__main__':
                 full_gold_sql[instance_id] = example["SQL"]              
     else:
         dictionaries, task_dict = get_dictionary(args.db_path, args.task)
+
+    if args.subtask == "sqlite":
+        dictionaries = [item for item in dictionaries if item.startswith("local")]
+    if args.task_offset:
+        dictionaries = dictionaries[args.task_offset:]
+    if args.limit_tasks:
+        dictionaries = dictionaries[:args.limit_tasks]
+    print(f"Total tasks to run: {len(dictionaries)}")
 
     if args.generation_model is not None:
         ChatClass = GPTChat

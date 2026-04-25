@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+PYTHON_BIN=${PYTHON_BIN:-python3}
 TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
 AZURE=false
 while [[ $# -gt 0 ]]; do
@@ -33,10 +34,10 @@ if [ "$TASK" = "lite" ]; then
     unzip ../../spider2-lite/resource/local_sqlite.zip -d ../../spider2-lite/resource/databases/spider2-localdb
 fi
 
-python spider_agent_setup_${TASK}.py --example_folder examples_${TASK}
+"$PYTHON_BIN" spider_agent_setup_${TASK}.py --example_folder examples_${TASK}
 
 # Reconstruct data
-python reconstruct_data.py \
+"$PYTHON_BIN" reconstruct_data.py \
     --example_folder examples_${TASK} \
     --add_description \
     --add_sample_rows \
@@ -47,7 +48,7 @@ python reconstruct_data.py \
 echo "Number of prompts.txt files in examples_${TASK} larger than 200KB before reducing: $(find examples_${TASK} -type f -name "prompts.txt" -exec du -b {} + | awk '$1 > 200000' | wc -l)"
 
 # Run Schema linking and voting
-python schema_linking.py \
+"$PYTHON_BIN" schema_linking.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --linked_json_pth ../../data/linked_${TASK}_tmp0.json \
@@ -65,7 +66,7 @@ echo "Task: $TASK"
 echo "Output Path: $OUTPUT_PATH"
 
 # Step 1: Self-refinement + Majority Voting
-CMD1="python run.py \
+CMD1="\"$PYTHON_BIN\" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH \
@@ -79,7 +80,7 @@ CMD1="python run.py \
     --num_workers $NUM_WORKERS"
 
 # Step 2: Self-refinement + Majority Voting + Column Exploration + Rerun
-CMD2="python run.py \
+CMD2="\"$PYTHON_BIN\" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH \
@@ -103,14 +104,14 @@ fi
 
 eval $CMD1
 echo "Evaluation for Step 1"
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK
 
 eval $CMD2
 echo "Evaluation for Step 2"
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK
 
 # Step 3: Random vote for tie
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH \
@@ -119,10 +120,10 @@ python run.py \
     --num_votes $NUM_VOTES \
     --num_workers $NUM_WORKERS
 echo "Evaluation for Step 3"
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK
 
 # Step 4: Random vote final_choose
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH \
@@ -132,10 +133,10 @@ python run.py \
     --num_votes $NUM_VOTES \
     --num_workers $NUM_WORKERS
 echo "Evaluation for Step 4"
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK
 
 # Final evaluation and get files for submission
-python get_metadata.py --result_path $OUTPUT_PATH --output_path output/${API}-${TASK}-csv-${TIMESTAMP}
-python get_metadata.py --result_path $OUTPUT_PATH --output_path output/${API}-${TASK}-sql-${TIMESTAMP} --file_type sql
+"$PYTHON_BIN" get_metadata.py --result_path $OUTPUT_PATH --output_path output/${API}-${TASK}-csv-${TIMESTAMP}
+"$PYTHON_BIN" get_metadata.py --result_path $OUTPUT_PATH --output_path output/${API}-${TASK}-sql-${TIMESTAMP} --file_type sql
 cd ../../spider2-${TASK}/evaluation_suite
-python evaluate.py --mode exec_result --result_dir ../../methods/ReFoRCE/output/${API}-${TASK}-csv-${TIMESTAMP}
+"$PYTHON_BIN" evaluate.py --mode exec_result --result_dir ../../methods/ReFoRCE/output/${API}-${TASK}-csv-${TIMESTAMP}

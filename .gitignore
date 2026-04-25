@@ -1,4 +1,6 @@
 # credentials
+.env
+**/.env
 **/snowflake_credential.json
 **/bigquery_credential.json
 
@@ -21,3 +23,7 @@ methods/ReFoRCE/output/
 
 # vscode
 .vscode/
+
+# macOS
+.DS_Store
+**/.DS_Store

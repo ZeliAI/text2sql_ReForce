@@ -1,9 +1,10 @@
 #!/bin/bash
 set -e
+PYTHON_BIN=${PYTHON_BIN:-python3}
 model=$1
 NUM_VOTES=8
 NUM_WORKERS=16
-python run.py \
+"$PYTHON_BIN" run.py \
     --task lite \
     --subtask sqlite \
     --do_self_refinement \
@@ -17,9 +18,9 @@ python run.py \
     --output_path output/${model}-sqlite-omni-log \
     --num_workers $NUM_WORKERS
 echo "Evaluation for Step 1: no vote for tie"
-python eval.py --log_folder output/${model}-sqlite-omni-log --task lite
+"$PYTHON_BIN" eval.py --log_folder output/${model}-sqlite-omni-log --task lite
 
-python run.py \
+"$PYTHON_BIN" run.py \
     --task lite \
     --subtask sqlite \
     --do_vote \
@@ -30,4 +31,4 @@ python run.py \
     --output_path output/${model}-sqlite-omni-log \
     --num_workers $NUM_WORKERS
 echo "Evaluation for Step 2: random_vote_for_tie"
-python eval.py --log_folder output/${model}-sqlite-omni-log --task lite
+"$PYTHON_BIN" eval.py --log_folder output/${model}-sqlite-omni-log --task lite

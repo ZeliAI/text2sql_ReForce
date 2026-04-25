@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+PYTHON_BIN=${PYTHON_BIN:-python3}
 UPDATE=false
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -23,7 +24,7 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-CMD1="python eval.py --log_folder $LOG_FOLDER --task $TASK"
+CMD1="\"$PYTHON_BIN\" eval.py --log_folder $LOG_FOLDER --task $TASK"
 if [ "$UPDATE" = true ]; then
   CMD1="$CMD1 --update_res"
 fi

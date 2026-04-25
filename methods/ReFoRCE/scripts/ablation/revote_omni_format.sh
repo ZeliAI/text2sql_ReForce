@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+PYTHON_BIN=${PYTHON_BIN:-python3}
 while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
@@ -18,7 +19,7 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH \
@@ -30,4 +31,4 @@ python run.py \
     --num_workers 1 \
     --omnisql_format_pth ../../data/omnisql_spider2_sqlite.json
 eval $CMD1
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK

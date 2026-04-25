@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
+PYTHON_BIN=${PYTHON_BIN:-python3}
 model=$1
 NUM_VOTES=8
 NUM_WORKERS=16
 OUTPUT_PATH=output/${model}-sqlite-omni-greedy-log
-python run.py \
+"$PYTHON_BIN" run.py \
     --task lite \
     --subtask sqlite \
     --do_self_refinement \
@@ -15,9 +16,9 @@ python run.py \
     --output_path $OUTPUT_PATH \
     --num_workers $NUM_WORKERS
 echo "Evaluation for Step 1"
-python eval.py --log_folder $OUTPUT_PATH --task lite
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task lite
 
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH \
@@ -33,4 +34,4 @@ python run.py \
     --rerun \
     --overwrite_unfinished
 echo "Evaluation for Step 2: CE"
-python eval.py --log_folder $OUTPUT_PATH --task lite
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task lite

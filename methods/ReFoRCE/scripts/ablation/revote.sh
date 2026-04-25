@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+PYTHON_BIN=${PYTHON_BIN:-python3}
 UPDATE=false
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -23,7 +24,7 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH\
@@ -33,13 +34,13 @@ python run.py \
     --num_workers 16
 
 echo "Evaluation for Step 1: revote"
-CMD1="python eval.py --log_folder $OUTPUT_PATH --task $TASK"
+CMD1="\"$PYTHON_BIN\" eval.py --log_folder $OUTPUT_PATH --task $TASK"
 if [ "$UPDATE" = true ]; then
   CMD1="$CMD1 --update_res"
 fi
 eval $CMD1
 
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH\
@@ -50,9 +51,9 @@ python run.py \
     --num_workers 16
 
 echo "Evaluation for Step 2: random_vote_for_tie"
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK
 
-python run.py \
+"$PYTHON_BIN" run.py \
     --task $TASK \
     --db_path examples_${TASK} \
     --output_path $OUTPUT_PATH\
@@ -64,4 +65,4 @@ python run.py \
     --num_workers 16
 
 echo "Evaluation for Step 3: final choose"
-python eval.py --log_folder $OUTPUT_PATH --task $TASK
+"$PYTHON_BIN" eval.py --log_folder $OUTPUT_PATH --task $TASK
