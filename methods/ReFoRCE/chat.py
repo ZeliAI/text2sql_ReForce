@@ -1,5 +1,9 @@
 import sys
 import re
+import time
+import random
+import os
+import json
 from abc import ABC, abstractmethod
 
 try:
@@ -24,6 +28,19 @@ class BaseChat(ABC):
         self.model = model
         self.temperature = float(temperature)
         self.messages = []
+        self.debug_logger = None
+        self.test_mode = os.environ.get("LLM_TEST_MODE", "false").strip().lower() in {"1", "true", "yes", "y"}
+        self.max_retries = int(os.environ.get("LLM_RETRY_MAX", "8"))
+        self.retry_base_seconds = float(os.environ.get("LLM_RETRY_BASE_SECONDS", "2"))
+        self.retry_max_seconds = float(os.environ.get("LLM_RETRY_MAX_SECONDS", "30"))
+        self.last_request_payload = None
+
+    def set_debug_logger(self, logger):
+        self.debug_logger = logger
+
+    def _debug(self, title, content):
+        if self.test_mode and self.debug_logger:
+            self.debug_logger.info(f"[{title}]\n{content}\n[{title}]")
 
     @abstractmethod
     def get_response(self, prompt) -> str:
@@ -50,8 +67,27 @@ class BaseChat(ABC):
                 response = self.get_response(prompt)
             except Exception as e:
                 print(f"max_try: {max_try}, exception: {e}")
+                self._debug("LLM exception", str(e))
+                if hasattr(self, "is_retryable_exception") and not self.is_retryable_exception(e):
+                    max_try = 0
+                    break
                 continue
             code_blocks = self.extract_response_blocks(response, code_format)
+            self._debug(
+                "LLM call",
+                json.dumps(
+                    {
+                        "model": self.model,
+                        "temperature": self.temperature,
+                        "code_format": code_format,
+                        "request": self.last_request_payload,
+                        "raw_response": response,
+                        "cleaned_blocks": code_blocks,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+            )
         if max_try == 0 or code_blocks == []:
             print(f"get_model_response() exit, max_try: {max_try}, code_blocks: {code_blocks}")
             sys.exit(0)
@@ -63,9 +99,26 @@ class BaseChat(ABC):
             max_try -= 1
             try:
                 response = self.get_response(prompt)
+                self._debug(
+                    "LLM txt call",
+                    json.dumps(
+                        {
+                            "model": self.model,
+                            "temperature": self.temperature,
+                            "request": self.last_request_payload,
+                            "raw_response": response,
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                )
                 return response
             except Exception as e:
                 print(f"max_try: {max_try}, exception: {e}")
+                self._debug("LLM exception", str(e))
+                if hasattr(self, "is_retryable_exception") and not self.is_retryable_exception(e):
+                    max_try = 0
+                    break
                 continue
         print(f"get_model_response_txt() exit, max_try: {max_try}")
         sys.exit(0)
@@ -81,9 +134,8 @@ class BaseChat(ABC):
         self.messages = []
 
 
-import os
-import json
 import urllib.request
+import urllib.error
 from pathlib import Path
 
 try:
@@ -116,12 +168,17 @@ class GPTChat(BaseChat):
         self.timeout = float(os.environ.get("LLM_TIMEOUT", "120"))
         max_tokens = os.environ.get("LLM_MAX_TOKENS")
         self.max_tokens = int(max_tokens) if max_tokens else None
+        self.provider = os.environ.get("LLM_PROVIDER", "").strip().lower()
         self.think_or_not = os.environ.get("THINK_OR_NOT", "true").strip().lower() in {"1", "true", "yes", "y"}
-        self.supports_thinking_param = self.model not in {"moonshot-v1-128k"}
+        unsupported_thinking_models = {
+            item.strip()
+            for item in os.environ.get("THINKING_UNSUPPORTED_MODELS", "moonshot-v1-128k").split(",")
+            if item.strip()
+        }
+        self.supports_thinking_param = self.model not in unsupported_thinking_models
 
         if not azure:
-            base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LLM_BASE_URL")
-            api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
+            base_url, api_key = self.resolve_provider()
             if OpenAI is None:
                 if not base_url:
                     raise ImportError("Install openai or set OPENAI_BASE_URL/LLM_BASE_URL for the stdlib HTTP client.")
@@ -162,6 +219,70 @@ class GPTChat(BaseChat):
                 timeout=self.timeout,
             )
 
+    def resolve_provider(self):
+        provider = self.provider
+        base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LLM_BASE_URL")
+        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
+
+        if provider == "moonshot":
+            base_url = base_url or "https://api.moonshot.ai/v1"
+            api_key = os.environ.get("MOONSHOT_API_KEY") or api_key
+        elif provider == "openai":
+            base_url = os.environ.get("OPENAI_BASE_URL") or None
+            api_key = os.environ.get("OPENAI_API_KEY") or api_key
+        elif provider in {"openai_compatible", "local"}:
+            base_url = os.environ.get("LLM_BASE_URL") or base_url
+            api_key = os.environ.get("LLM_API_KEY") or api_key
+
+        if base_url:
+            base_url = base_url.rstrip("/")
+        return base_url, api_key
+
+    def is_retryable_exception(self, exc):
+        text = str(exc).lower()
+        permanent_markers = [
+            "insufficient balance",
+            "exceeded_current_quota",
+            "suspended",
+            "billing",
+            "invalid api key",
+            "unauthorized",
+            "permission denied",
+            "model not found",
+            "invalid temperature",
+        ]
+        if any(marker in text for marker in permanent_markers):
+            return False
+        retry_markers = [
+            "429",
+            "rate limit",
+            "rate_limit",
+            "max organization concurrency",
+            "temporarily unavailable",
+            "timeout",
+            "timed out",
+            "connection reset",
+            "service unavailable",
+            "502",
+            "503",
+            "504",
+        ]
+        return any(marker in text for marker in retry_markers)
+
+    def with_retry(self, fn):
+        attempt = 0
+        while True:
+            try:
+                return fn()
+            except Exception as exc:
+                attempt += 1
+                if attempt > self.max_retries or not self.is_retryable_exception(exc):
+                    raise
+                delay = min(self.retry_max_seconds, self.retry_base_seconds * (2 ** (attempt - 1)))
+                delay += random.uniform(0, min(1.0, delay * 0.25))
+                self._debug("LLM retry", f"attempt={attempt}, sleep={delay:.2f}s, error={exc}")
+                time.sleep(delay)
+
     def get_http_response(self) -> str:
         payload = {
             "model": self.model,
@@ -172,6 +293,7 @@ class GPTChat(BaseChat):
             payload["max_tokens"] = self.max_tokens
         if not self.think_or_not and self.supports_thinking_param:
             payload["thinking"] = {"type": "disabled"}
+        self.last_request_payload = payload
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
@@ -182,35 +304,41 @@ class GPTChat(BaseChat):
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=self.timeout) as response:
-            body = json.loads(response.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
         return body["choices"][0]["message"]["content"]
 
     def get_response(self, prompt) -> str:
         self.messages.append({"role": "user", "content": prompt})
         if self.http_mode:
-            main_content = self.get_http_response()
+            main_content = self.with_retry(self.get_http_response)
         elif self.model == "o3-pro":
             kwargs = {
                 "model": self.model,
-                "input": self.messages,
+                "input": list(self.messages),
                 "temperature": self.temperature
             }
             if self.max_tokens:
                 kwargs["max_output_tokens"] = self.max_tokens
-            response = self.client.responses.create(**kwargs)
+            self.last_request_payload = kwargs
+            response = self.with_retry(lambda: self.client.responses.create(**kwargs))
             main_content = response.output_text
         else:
             kwargs = {
                 "model": self.model,
-                "messages": self.messages,
+                "messages": list(self.messages),
                 "temperature": self.temperature
             }
             if self.max_tokens:
                 kwargs["max_tokens"] = self.max_tokens
             if not self.think_or_not and self.supports_thinking_param:
                 kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
-            response = self.client.chat.completions.create(**kwargs)
+            self.last_request_payload = kwargs
+            response = self.with_retry(lambda: self.client.chat.completions.create(**kwargs))
             main_content = response.choices[0].message.content
 
         self.messages.append({"role": "assistant", "content": main_content})

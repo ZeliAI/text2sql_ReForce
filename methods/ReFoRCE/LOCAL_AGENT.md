@@ -1,84 +1,408 @@
-# Local Text-to-SQL Agent Smoke Test
+# Local Text-to-SQL Agent Guide
 
-This repo's original `run_main.sh --task lite` downloads Spider2 SQLite databases with `gdown`.
-For local debugging without external DB downloads or embeddings, use the stdlib-only smoke test:
+这份文档面向两个场景：
+
+1. 在一台新的机器上，从 git 拉代码、配置 SQLite 和 API、跑通整个流程。
+2. 后续需要接更多 LLM API 来源时，知道该改哪里。
+
+## 1. 从零开始拉起一个新环境
+
+### 1.1 拉代码
+
+如果是新机器，先 clone 仓库：
 
 ```bash
-cd methods/ReFoRCE
+git clone https://github.com/ZeliAI/text2sql_ReForce.git
+cd text2sql_ReForce/methods/ReFoRCE
+```
+
+如果你是从官方仓库开始，也可以：
+
+```bash
+git clone https://github.com/Snowflake-Labs/ReFoRCE.git
+cd ReFoRCE/methods/ReFoRCE
+```
+
+### 1.2 创建 Python 环境
+
+推荐用 `conda`：
+
+```bash
+conda create -n reforce python=3.10 -y
+conda activate reforce
+pip install -r requirements.txt
+```
+
+如果终端里默认 `python` 不是 Python 3，可以继续使用：
+
+```bash
+python3
+```
+
+或者在当前 shell 中加载：
+
+```bash
 source scripts/use_python3.sh
+```
+
+### 1.3 准备 Spider2-Lite SQLite 数据库
+
+Lite SQLite 路径依赖可执行的 `.sqlite` 文件，它们应该放在：
+
+- [spider2-lite/resource/databases/spider2-localdb](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/spider2-lite/resource/databases/spider2-localdb)
+
+如果这个目录还没有准备好，需要把 Spider2-Lite 的 SQLite 数据库放进去。当前仓库运行时只认这个目录。
+
+检查方式：
+
+```bash
+find ../../spider2-lite/resource/databases/spider2-localdb -name "*.sqlite" | head
+```
+
+如果能看到一批 `.sqlite` 文件，说明 SQLite 环境已经就绪。
+
+### 1.4 配置 API 接口
+
+把密钥和基础地址放在：
+
+- [`.env`](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/.env)
+
+推荐格式：
+
+```bash
+LLM_BASE_URL=https://api.moonshot.ai/v1
+LLM_API_KEY=your-api-key
+PYTHON_BIN=python3
+```
+
+说明：
+
+- `.env` 只放敏感信息和机器相关信息，例如 `LLM_API_KEY`
+- 不建议把具体模型、并发、任务数也放进 `.env`
+- 模型和运行参数放在 [config.env](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/config.env)
+
+### 1.5 配置运行参数
+
+主要运行参数放在：
+
+- [config.env](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/config.env)
+
+一个常见的 Lite SQLite 配置示例：
+
+```bash
+LLM_PROVIDER=moonshot
+LLM_MODEL=moonshot-v1-128k
+LLM_TEMPERATURE=0.6
+LLM_TIMEOUT=120
+LLM_MAX_TOKENS=4096
+THINK_OR_NOT=false
+THINKING_UNSUPPORTED_MODELS=moonshot-v1-128k
+
+LLM_RETRY_MAX=8
+LLM_RETRY_BASE_SECONDS=2
+LLM_RETRY_MAX_SECONDS=30
+LLM_TEST_MODE=false
+
+NUM_WORKERS=1
+MAX_ITER=1
+TASK_LIMIT=10
+TASK_OFFSET=0
+DO_VOTE=false
+NUM_VOTES=3
+RANDOM_VOTE_FOR_TIE=false
+FINAL_CHOOSE=false
+
+OUTPUT_PATH=output/moonshot-v1-128k-lite-sqlite-10-no-thinking
+ADD_TIMESTAMP=true
+```
+
+### 1.6 先跑一个本地 smoke test
+
+这个 smoke test 不依赖 Spider2-Lite 数据库，适合先验证 API 和代码链路是否通。
+
+```bash
+cd /path/to/text2sql_ReForce/methods/ReFoRCE
+conda activate reforce
 python3 -B run_local_demo.py --mock
 ```
 
-It creates a tiny SQLite database at `examples_local/local_demo/demo.sqlite`, runs a Text-to-SQL loop, and writes:
+它会创建一个极小 SQLite demo，并写出：
 
 - `output/local-demo/result.sql`
 - `output/local-demo/result.csv`
 - `output/local-demo/log.json`
 
-To call an OpenAI-compatible LLM endpoint:
+如果你想直接调用真实 LLM：
 
 ```bash
-export LLM_BASE_URL="https://your-host/v1"
-export LLM_API_KEY="your-api-key"
-export LLM_MODEL="your-model"
 python3 -B run_local_demo.py --model "$LLM_MODEL"
 ```
 
-For Moonshot/Kimi `kimi-k2.6`, keep temperature at `1`:
+### 1.7 跑通 Lite SQLite 全链路
+
+当 `.env`、`config.env`、SQLite 数据库都准备好之后，直接运行：
 
 ```bash
-export LLM_BASE_URL="https://api.moonshot.ai/v1"
-export LLM_MODEL="kimi-k2.6"
-python3 -B run_local_demo.py --model "$LLM_MODEL" --temperature 1
+cd /path/to/text2sql_ReForce/methods/ReFoRCE
+conda activate reforce
+bash scripts/run_lite_sqlite.sh
 ```
 
-You can also point it at your own SQLite file:
+这个脚本会：
+
+1. 自动读取 `.env`
+2. 自动读取 `config.env`
+3. 只跑 Lite SQLite 子任务
+4. 调用 [run.py](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/run.py)
+5. 结果输出到 `OUTPUT_PATH` 对应目录
+
+如果 `ADD_TIMESTAMP=true`，最终目录会是：
+
+```text
+output/<你的输出名>-YYYYMMDD-HHMMSS
+```
+
+### 1.8 评测结果
+
+跑完后，用下面的命令评测：
 
 ```bash
-python3 -B run_local_demo.py \
-  --sqlite /path/to/your.db \
-  --question "your natural language question" \
-  --model "$LLM_MODEL"
+bash scripts/run_eval.sh --task lite --log_folder output/<你的实际输出目录>
 ```
 
-Schema retrieval is intentionally simple: tables are ranked by keyword overlap between the question and table/column names.
-
-The local `.env` file is automatically loaded by `chat.py`, so you can also keep these values in:
+例如：
 
 ```bash
-methods/ReFoRCE/.env
+bash scripts/run_eval.sh --task lite --log_folder output/moonshot-v1-128k-lite-sqlite-10-no-thinking-20260426-120000
 ```
 
-## Spider2-Lite SQLite Only
+## 2. 常用运行方式
 
-For your Lite-only workflow, skip Snowflake and use the SQLite runner:
+### 2.1 只跑几条快速验证
 
 ```bash
-cd methods/ReFoRCE
-source scripts/use_python3.sh
-export LLM_API_KEY="your-api-key"
-bash scripts/run_lite_sqlite.sh kimi-k2.6
+TASK_LIMIT=3 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 ```
 
-This uses `data/omnisql_spider2_sqlite.json` and `--subtask sqlite`. It does not touch Snowflake.
-It still needs executable Spider2-Lite `.sqlite` files under `spider2-lite/resource/databases/spider2-localdb`,
-which are not included in this clone; the checked-in `spider2-lite/resource/databases/sqlite` folder contains schema JSON files.
+### 2.2 开启 self-refine 多轮修正
 
-Lite runs are controlled by `methods/ReFoRCE/config.env`:
+在 `config.env` 中设置：
 
 ```bash
-LLM_MODEL=kimi-k2.6
-LLM_TEMPERATURE=0.6
-LLM_MAX_TOKENS=4096
-THINK_OR_NOT=false
-NUM_WORKERS=1
-MAX_ITER=1
-TASK_LIMIT=3
-TASK_OFFSET=10
-OUTPUT_PATH=output/kimi-k2.6-lite-sqlite-3tasks-offset10-no-thinking
-ADD_TIMESTAMP=true
+MAX_ITER=3
 ```
 
-`THINK_OR_NOT=false` sends `extra_body={"thinking": {"type": "disabled"}}` for OpenAI-compatible chat calls.
-Supported model examples are `kimi-k2.6` and `moonshot-v1-128k`; `moonshot-v1-128k` does not support thinking mode.
-When `ADD_TIMESTAMP=true`, the runner appends `YYYYMMDD-HHMMSS` to the output directory.
+### 2.3 开启 vote / 多候选
+
+在 `config.env` 中设置：
+
+```bash
+DO_VOTE=true
+NUM_VOTES=3
+RANDOM_VOTE_FOR_TIE=true
+FINAL_CHOOSE=true
+```
+
+注意：
+
+- 当前 `run.py` 的 vote 是并发发起多个候选请求
+- 如果模型服务端并发额度较小，`NUM_VOTES` 过大容易触发 `429`
+- 例如 Moonshot 这边如果组织并发上限是 3，就更适合 `NUM_VOTES=3`
+
+## 3. 测试模式
+
+测试模式主要用于分辨：
+
+- 是模型能力问题
+- 还是 prompt 问题
+- 还是响应清洗问题
+- 还是 API 调用 / 限流问题
+
+开启方式：
+
+```bash
+LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
+```
+
+开启后，每个样本对应的 `log.log` 会额外记录：
+
+- `[LLM call]`
+  - 当前模型名
+  - temperature
+  - 发给 API 的请求 payload
+  - 模型原始输出
+  - 清洗后的 code blocks
+- `[LLM retry]`
+  - 重试次数
+  - 等待时长
+  - 原始错误信息
+- `[LLM exception]`
+  - 最终抛出的异常
+
+这些日志写在每个样本自己的目录里，例如：
+
+- `output/<run-name>/local019/log.log`
+
+### 3.1 当前 retry 规则
+
+会重试的情况：
+
+- `429 rate limit`
+- `max organization concurrency`
+- 超时
+- 临时网络故障
+- `502/503/504`
+
+不会重试的情况：
+
+- `insufficient balance`
+- `exceeded_current_quota`
+- `suspended`
+- `invalid temperature`
+- `model not found`
+- 鉴权失败
+
+也就是说，当前逻辑已经区分：
+
+- 临时性错误：等几秒再试
+- 永久性错误：直接失败，不空耗时间
+
+## 4. 如何扩充不同的 API 来源
+
+当前扩展入口主要在：
+
+- [chat.py](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/chat.py)
+
+核心类是：
+
+- `GPTChat`
+
+### 4.1 现有支持方式
+
+现在 `GPTChat` 已经支持几类来源：
+
+1. `LLM_PROVIDER=moonshot`
+   - 默认走 `https://api.moonshot.ai/v1`
+   - 使用 `MOONSHOT_API_KEY` 或 `LLM_API_KEY`
+
+2. `LLM_PROVIDER=openai`
+   - 使用 `OPENAI_API_KEY`
+   - 可选 `OPENAI_BASE_URL`
+
+3. `LLM_PROVIDER=openai_compatible`
+   - 使用 `LLM_BASE_URL`
+   - 使用 `LLM_API_KEY`
+   - 适合 OpenAI-compatible API 网关
+
+4. `LLM_PROVIDER=local`
+   - 也是走 `LLM_BASE_URL + LLM_API_KEY`
+   - 适合本地部署、OpenAI-compatible 接口
+
+### 4.2 如果要扩新 provider，改哪里
+
+最主要改这几个位置：
+
+1. [chat.py](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/chat.py) 里的 `resolve_provider()`
+   - 在这里新增 provider 名称和对应的：
+     - `base_url`
+     - `api_key`
+
+2. 同文件的 `get_response()`
+   - 如果新 provider 仍然兼容 OpenAI chat/completions 协议，通常不用大改
+   - 如果协议不同，就在这里分支处理
+
+3. 同文件的 `get_http_response()`
+   - 如果你要支持一个不依赖 `openai` SDK、但 HTTP 协议又略有不同的服务，可以在这里扩展 payload 和返回解析
+
+4. [config.env](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/config.env)
+   - 给出对应的 `LLM_PROVIDER`
+   - 配置默认模型、温度、thinking 支持情况等
+
+### 4.3 两种扩展路径
+
+#### A. 新来源兼容 OpenAI API
+
+这是最简单的情况。
+
+只需要在 `.env` 或环境变量里配置：
+
+```bash
+LLM_PROVIDER=openai_compatible
+LLM_BASE_URL=https://your-host/v1
+LLM_API_KEY=your-key
+LLM_MODEL=your-model
+```
+
+这种情况下，往往不用再改 Python 代码。
+
+#### B. 新来源不兼容 OpenAI API
+
+这时建议：
+
+1. 在 [chat.py](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/chat.py) 里新增一个 provider 分支
+2. 明确这个 provider 的：
+   - 请求 URL
+   - 请求体格式
+   - thinking 开关字段
+   - max tokens 字段
+   - 返回体提取逻辑
+3. 复用现有的：
+   - retry 机制
+   - debug/test mode
+   - response block 清洗逻辑
+
+建议尽量让新 provider 仍然产出统一的字符串响应，这样：
+
+- `extract_response_blocks()`
+- `get_model_response()`
+
+这些后续逻辑都不用动。
+
+### 4.4 一个新 provider 的最小改法
+
+如果你要接一个叫 `myvendor` 的新来源，通常流程是：
+
+1. 在 `config.env` 里写：
+
+```bash
+LLM_PROVIDER=myvendor
+LLM_MODEL=my-model
+```
+
+2. 在 `.env` 里写：
+
+```bash
+LLM_BASE_URL=https://api.myvendor.com/v1
+LLM_API_KEY=your-key
+```
+
+3. 在 `resolve_provider()` 里新增：
+
+```python
+elif provider == "myvendor":
+    base_url = os.environ.get("LLM_BASE_URL") or "https://api.myvendor.com/v1"
+    api_key = os.environ.get("MYVENDOR_API_KEY") or api_key
+```
+
+4. 如果协议兼容 OpenAI，就结束了  
+   如果不兼容，再在 `get_http_response()` 或 `get_response()` 里加分支。
+
+## 5. 当前推荐理解
+
+如果只想先稳定跑起来，建议优先走：
+
+- `moonshot-v1-128k`
+- `THINK_OR_NOT=false`
+- `NUM_WORKERS=1`
+- `MAX_ITER=1`
+- 小规模 `TASK_LIMIT`
+
+如果要做更强实验，再逐步打开：
+
+- `MAX_ITER=3`
+- `DO_VOTE=true`
+- `NUM_VOTES=3`
+- `RANDOM_VOTE_FOR_TIE=true`
+- `FINAL_CHOOSE=true`
+
+这套配置更接近论文方法，但也更容易碰到 API 并发和额度问题。

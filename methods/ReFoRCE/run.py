@@ -49,8 +49,10 @@ def execute(question, table_info, args, csv_save_path, log_save_path, sql_save_p
     chat_session = None
     if args.do_column_exploration:
         chat_session_ex = ChatClass(args.azure, args.column_exploration_model, temperature=args.temperature)
+        chat_session_ex.set_debug_logger(logger)
     if args.generation_model:
         chat_session = ChatClass(args.azure, args.generation_model, temperature=args.temperature)
+        chat_session.set_debug_logger(logger)
 
     # agent
     agent = REFORCE(args.db_path, sql_data, search_directory, prompt_all, sql_env, chat_session_ex, chat_session, sql_data+'/'+log_save_path, db_id, task=args.task)

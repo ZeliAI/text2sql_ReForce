@@ -29,6 +29,10 @@ MAX_ITER=${MAX_ITER:-3}
 TEMPERATURE=${LLM_TEMPERATURE:-1}
 TASK_LIMIT=${TASK_LIMIT:-0}
 TASK_OFFSET=${TASK_OFFSET:-0}
+DO_VOTE=${DO_VOTE:-false}
+NUM_VOTES=${NUM_VOTES:-3}
+RANDOM_VOTE_FOR_TIE=${RANDOM_VOTE_FOR_TIE:-false}
+FINAL_CHOOSE=${FINAL_CHOOSE:-false}
 ADD_TIMESTAMP=${ADD_TIMESTAMP:-true}
 SQLITE_DIR="../../spider2-lite/resource/databases/spider2-localdb"
 
@@ -49,6 +53,19 @@ if [ ! -d "$SQLITE_DIR" ] || ! find "$SQLITE_DIR" -name "*.sqlite" -print -quit 
   exit 1
 fi
 
+EXTRA_ARGS=()
+if [ "$DO_VOTE" = "true" ] || [ "$DO_VOTE" = "1" ] || [ "$DO_VOTE" = "yes" ]; then
+  EXTRA_ARGS+=(--do_vote --num_votes "$NUM_VOTES")
+fi
+
+if [ "$RANDOM_VOTE_FOR_TIE" = "true" ] || [ "$RANDOM_VOTE_FOR_TIE" = "1" ] || [ "$RANDOM_VOTE_FOR_TIE" = "yes" ]; then
+  EXTRA_ARGS+=(--random_vote_for_tie)
+fi
+
+if [ "$FINAL_CHOOSE" = "true" ] || [ "$FINAL_CHOOSE" = "1" ] || [ "$FINAL_CHOOSE" = "yes" ]; then
+  EXTRA_ARGS+=(--final_choose)
+fi
+
 "$PYTHON_BIN" run.py \
     --task lite \
     --subtask sqlite \
@@ -62,4 +79,5 @@ fi
     --num_workers "$NUM_WORKERS" \
     --limit_tasks "$TASK_LIMIT" \
     --task_offset "$TASK_OFFSET" \
-    --overwrite_unfinished
+    --overwrite_unfinished \
+    "${EXTRA_ARGS[@]}"

@@ -4,6 +4,10 @@
 | <a href="https://arxiv.org/pdf/2502.00675"><b>Paper</b></a> | <a href="https://hao-ai-lab.github.io/blogs/reforce/"><b>Blog</b></a> |
 </p>
 
+## Project Note
+
+This repository is based on the original [Snowflake-Labs/ReFoRCE](https://github.com/Snowflake-Labs/ReFoRCE) project and has been adapted for local Text-to-SQL agent debugging, Lite SQLite-only execution, configurable LLM providers, retry-aware API calls, and test-mode logging.
+
 ## News 🗞️
 - **2025.07:** We add a simple table-level schema linking method that achieves high recall, details in [README.md](methods/SL/gen_sl/README.md).
 
