@@ -34,9 +34,12 @@ NUM_VOTES=${NUM_VOTES:-3}
 RANDOM_VOTE_FOR_TIE=${RANDOM_VOTE_FOR_TIE:-false}
 FINAL_CHOOSE=${FINAL_CHOOSE:-false}
 ADD_TIMESTAMP=${ADD_TIMESTAMP:-true}
+DO_SCHEMA_SUMMARY=${DO_SCHEMA_SUMMARY:-true}
+SCHEMA_SUMMARY_MODEL=${SCHEMA_SUMMARY_MODEL:-$MODEL}
+SELECTOR_MODEL=${SELECTOR_MODEL:-$MODEL}
 SQLITE_DIR="../../spider2-lite/resource/databases/spider2-localdb"
 
-if [ "$MODEL" = "moonshot-v1-128k" ]; then
+if [ "$MODEL" = "moonshot-v1-128k" ] || [ "$MODEL" = "moonshot-v1-64k" ]; then
   export THINK_OR_NOT=false
 fi
 
@@ -63,7 +66,11 @@ if [ "$RANDOM_VOTE_FOR_TIE" = "true" ] || [ "$RANDOM_VOTE_FOR_TIE" = "1" ] || [ 
 fi
 
 if [ "$FINAL_CHOOSE" = "true" ] || [ "$FINAL_CHOOSE" = "1" ] || [ "$FINAL_CHOOSE" = "yes" ]; then
-  EXTRA_ARGS+=(--final_choose)
+  EXTRA_ARGS+=(--final_choose --selector_model "$SELECTOR_MODEL")
+fi
+
+if [ "$DO_SCHEMA_SUMMARY" = "true" ] || [ "$DO_SCHEMA_SUMMARY" = "1" ] || [ "$DO_SCHEMA_SUMMARY" = "yes" ]; then
+  EXTRA_ARGS+=(--do_schema_summary --schema_summary_model "$SCHEMA_SUMMARY_MODEL")
 fi
 
 "$PYTHON_BIN" run.py \

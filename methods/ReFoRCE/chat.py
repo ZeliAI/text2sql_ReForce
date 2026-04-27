@@ -34,6 +34,7 @@ class BaseChat(ABC):
         self.retry_base_seconds = float(os.environ.get("LLM_RETRY_BASE_SECONDS", "2"))
         self.retry_max_seconds = float(os.environ.get("LLM_RETRY_MAX_SECONDS", "30"))
         self.last_request_payload = None
+        self.provider = ""
 
     def set_debug_logger(self, logger):
         self.debug_logger = logger
@@ -159,6 +160,39 @@ def load_env_file():
 
 load_env_file()
 
+
+def normalize_response_text(content):
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                if item.get("type") in {"text", "output_text"} and item.get("text"):
+                    parts.append(item["text"])
+                elif item.get("content"):
+                    parts.append(str(item["content"]))
+            else:
+                text_value = getattr(item, "text", None)
+                if text_value:
+                    parts.append(text_value)
+        return "\n".join(part for part in parts if part)
+    return str(content)
+
+
+def clean_provider_response_text(text, provider):
+    text = normalize_response_text(text).strip()
+    if provider == "simpleai":
+        text = re.sub(r"(?is)^\s*<(?:think|thinking)>.*?</(?:think|thinking)>\s*", "", text).strip()
+        text = re.sub(r"(?is)^\s*```(?:markdown|text)?\s*", "", text)
+        text = re.sub(r"(?is)\s*```\s*$", "", text).strip()
+    return text
+
+
 class GPTChat(BaseChat):
     def __init__(self, azure=False, model="gpt-4o", temperature=1.0):
         super().__init__(model, temperature)
@@ -175,7 +209,7 @@ class GPTChat(BaseChat):
             for item in os.environ.get("THINKING_UNSUPPORTED_MODELS", "moonshot-v1-128k").split(",")
             if item.strip()
         }
-        self.supports_thinking_param = self.model not in unsupported_thinking_models
+        self.supports_thinking_param = self.provider == "moonshot" and self.model not in unsupported_thinking_models
 
         if not azure:
             base_url, api_key = self.resolve_provider()
@@ -221,17 +255,22 @@ class GPTChat(BaseChat):
 
     def resolve_provider(self):
         provider = self.provider
-        base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LLM_BASE_URL")
+        openai_base_url = os.environ.get("OPENAI_BASE_URL")
+        llm_base_url = os.environ.get("LLM_BASE_URL")
+        base_url = openai_base_url or llm_base_url
         api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
 
         if provider == "moonshot":
-            base_url = base_url or "https://api.moonshot.ai/v1"
-            api_key = os.environ.get("MOONSHOT_API_KEY") or api_key
+            base_url = os.environ.get("MOONSHOT_BASE_URL") or llm_base_url or "https://api.moonshot.ai/v1"
+            api_key = os.environ.get("MOONSHOT_API_KEY") or os.environ.get("LLM_API_KEY") or api_key
         elif provider == "openai":
-            base_url = os.environ.get("OPENAI_BASE_URL") or None
+            base_url = openai_base_url or None
             api_key = os.environ.get("OPENAI_API_KEY") or api_key
+        elif provider == "simpleai":
+            base_url = os.environ.get("SIMPLEAI_BASE_URL") or "https://key.simpleai.com.cn/v1"
+            api_key = os.environ.get("SIMPLEAI_API_KEY") or os.environ.get("LLM_API_KEY") or api_key
         elif provider in {"openai_compatible", "local"}:
-            base_url = os.environ.get("LLM_BASE_URL") or base_url
+            base_url = llm_base_url or base_url
             api_key = os.environ.get("LLM_API_KEY") or api_key
 
         if base_url:
@@ -310,7 +349,7 @@ class GPTChat(BaseChat):
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
-        return body["choices"][0]["message"]["content"]
+        return clean_provider_response_text(body["choices"][0]["message"]["content"], self.provider)
 
     def get_response(self, prompt) -> str:
         self.messages.append({"role": "user", "content": prompt})
@@ -339,7 +378,7 @@ class GPTChat(BaseChat):
                 kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
             self.last_request_payload = kwargs
             response = self.with_retry(lambda: self.client.chat.completions.create(**kwargs))
-            main_content = response.choices[0].message.content
+            main_content = clean_provider_response_text(response.choices[0].message.content, self.provider)
 
         self.messages.append({"role": "assistant", "content": main_content})
         return main_content

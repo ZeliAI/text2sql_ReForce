@@ -4,6 +4,9 @@ You are a data science expert. Below, you are provided with a database schema an
 Database Engine:
 {db_engine}
 
+Schema Summary:
+{db_summary}
+
 Database Schema:
 {db_details}
 This schema describes the database's structure, including tables, columns, primary keys, foreign keys, and any relevant relationships or constraints.
@@ -15,6 +18,7 @@ Instructions:
 - Make sure you only output the information that is asked in the question. If the question asks for a specific column, make sure to only include that column in the SELECT clause, nothing more.
 - The generated query should return all of the information asked in the question without any missing or extra information.
 - Before generating the final SQL query, please think through the steps of how to write the query.
+{extra_guidance}
 
 Output Format:
 In your answer, please enclose the generated SQL query in a code block:
@@ -28,6 +32,56 @@ Take a deep breath and think step by step to find the correct SQL query.
 class Prompts:
     def __init__(self):
         pass
+    def get_schema_summary_prompt(self, api, table_info, question):
+        prompt = "You are preparing compact schema notes for a downstream text-to-SQL model.\n"
+        prompt += f"Database engine: {api}.\n"
+        prompt += "Your task is not to write SQL. Your task is to summarize only the schema information most relevant to the question.\n"
+        prompt += "Read the schema carefully and produce a compact, high-signal summary with these sections exactly:\n"
+        prompt += "[Requested Output]\n"
+        prompt += "[Relevant Tables]\n"
+        prompt += "[Relevant Columns]\n"
+        prompt += "[Possible Join Keys]\n"
+        prompt += "[Cautions]\n"
+        prompt += "In [Requested Output], state whether the final answer should return a name, id, scalar value, or multiple columns.\n"
+        prompt += "In [Relevant Tables], include only tables that are likely needed for the final SQL.\n"
+        prompt += "In [Relevant Columns], list the exact columns needed for filtering, joining, grouping, ordering, and final selection.\n"
+        prompt += "In [Possible Join Keys], write complete join keys, not partial hints. If the schema suggests a ball-level or event-level compound key, list every key column explicitly.\n"
+        prompt += "In [Cautions], call out likely aggregation grain, denominator mistakes, risky joins, and any columns that look easy to misuse.\n"
+        prompt += "If a question asks for a person or object name, explicitly say which id column must be joined to which name table.\n"
+        prompt += "If a metric depends on multiple fact tables, state which table should define the base grain before joins.\n"
+        prompt += "Be conservative about semantic roles. Do not infer that a column represents the requested entity just because the name looks related.\n"
+        prompt += "For example, a column like player_out usually refers to the dismissed player, not automatically the bowler, unless the schema explicitly proves otherwise.\n"
+        prompt += "If the question asks about a role such as bowler, batter, striker, loser, or winner, prefer columns whose names directly match that role. If a different column might be related but is semantically ambiguous, mention it in [Cautions] instead of treating it as the primary answer column.\n"
+        prompt += "When role assignment is ambiguous, explicitly say so in [Cautions] and keep the join plan anchored on the least ambiguous role columns.\n"
+        prompt += "If a table or column appears irrelevant, omit it.\n"
+        prompt += "Be concrete. Do not say 'join by common keys'; list the key names.\n"
+        prompt += "Do not answer the task. Do not write SQL. Do not mention tables that are not in the provided schema.\n"
+        if api == "sqlite":
+            prompt += "For SQLite sports schemas, pay special attention to compound identifiers such as match_id, over_id, ball_id, innings_no, striker, and bowler. If several of them are needed together, say so explicitly.\n"
+            prompt += "For SQLite cricket-style schemas, prefer role columns such as bowler or striker from ball_by_ball over indirectly related outcome columns when identifying who a player is.\n"
+        prompt += f"\nQuestion:\n{question}\n"
+        prompt += f"\nSchema:\n{table_info}\n"
+        return prompt
+    def get_selector_prompt(self, question, schema_summary, candidate_payload):
+        prompt = "You are the final selector for a text-to-SQL system.\n"
+        prompt += "Do not write a new SQL query. Choose the best candidate from the provided SQL files only.\n"
+        prompt += "Follow this judgment order strictly:\n"
+        prompt += "1. Check whether the result columns and result shape match the question.\n"
+        prompt += "2. Check whether the SQL returns the requested entity type (for example name vs id, scalar vs table).\n"
+        prompt += "3. Check aggregation grain and denominator logic.\n"
+        prompt += "4. Check whether join keys look complete and whether the query may silently drop needed rows.\n"
+        prompt += "5. If several candidates are executable, prefer the one whose SQL and result align best with the question.\n"
+        prompt += "Output exactly two sections:\n"
+        prompt += "[selected_sql]\n"
+        prompt += "one filename from the candidate list\n\n"
+        prompt += "[reason]\n"
+        prompt += "short explanation\n\n"
+        prompt += f"Question:\n{question}\n\n"
+        prompt += "Schema Summary:\n"
+        prompt += (schema_summary.strip() if schema_summary else "No schema summary available.") + "\n\n"
+        prompt += "Candidates:\n"
+        prompt += candidate_payload
+        return prompt
     def get_condition_onmit_tables(self):
         return ["-- Include all", "-- Omit", "-- Continue", "-- Union all", "-- ...", "-- List all", "-- Replace this", "-- Each table", "-- Add other"]
     def get_prompt_dialect_list_all_tables(self, table_struct, api):
@@ -45,6 +99,18 @@ class Prompts:
         return "For string-matching scenarios, convert non-standard symbols to '%'. e.g. ('he’s to he%s)\n"
     def get_prompt_knowledge(self):
         return "Your knowledge is based on information in database. Don't use your own knowledge.\n"
+    def get_prompt_semantic_checklist(self, api):
+        prompt = "Before writing the final SQL, silently verify these points:\n"
+        prompt += "- Define the exact business meaning of the question before writing SQL. Do not replace the requested concept with a simpler string match unless the schema clearly proves they are the same.\n"
+        prompt += "- Define the aggregation grain first: what one row means before GROUP BY, and what entity is being averaged, counted, summed, ranked, or filtered.\n"
+        prompt += "- For aggregate questions, make sure the numerator and denominator are computed on the intended grain. Do not accidentally average per-ball data when the task asks for per-match or per-player results.\n"
+        prompt += "- When joining fact tables, use the full join key required by the schema. If multiple tables are at ball level, prefer joining on all available ball identifiers rather than partial keys.\n"
+        prompt += "- Do not use INNER JOIN in a way that silently drops rows needed for the metric unless the task explicitly requires that filtering.\n"
+        prompt += "- Use only columns that exist in the provided schema. If a needed concept is not in one table, derive it by joining to the correct table.\n"
+        prompt += "- If the task asks for names, return names. If it asks for one scalar value, return one scalar value. Do not add extra columns.\n"
+        if api == "sqlite":
+            prompt += "- In SQLite sports schemas with ball-level tables, inspect whether match_id, over_id, ball_id, and innings_no are all needed to align rows correctly.\n"
+        return prompt
     def get_prompt_dialect_nested(self, api):
         if api == "snowflake":
             return "For columns in json nested format: e.g. SELECT t.\"column_name\", f.value::VARIANT:\"key_name\"::STRING AS \"abstract_text\" FROM PATENTS.PATENTS.PUBLICATIONS t, LATERAL FLATTEN(input => t.\"json_column_name\") f; DO NOT directly answer the task and ensure all column names are enclosed in double quotations. For nested columns like event_params, when you don't know the structure of it, first watch the whole column: SELECT f.value FROM table, LATERAL FLATTEN(input => t.\"event_params\") f;\n"
@@ -109,18 +175,22 @@ class Prompts:
     def get_exploration_self_correct_prompt(self, sql, error):
         return f"Input sql:\n{sql}\nThe error information is:\n" + str(error) + "\nPlease correct it based on previous context and output the thinking process with only one sql query in ```sql\n--Description: \n``` format. Don't just analyze without SQL or output several SQLs.\n"
 
-    def get_self_refine_prompt(self, table_info, task, pre_info, question, api, format_csv, table_struct, omnisql_format_pth=None):
+    def get_self_refine_prompt(self, table_info, task, pre_info, question, api, format_csv, table_struct, omnisql_format_pth=None, schema_summary=None):
+        summary_block = schema_summary.strip() if schema_summary else "No schema summary was prepared. Use the raw schema carefully."
         if omnisql_format_pth:
             if task == "lite":
                 return omni_sql_input_prompt_template.format(
                     db_engine = "SQLite",
+                    db_summary = summary_block,
                     db_details = table_info,
-                    question = question
+                    question = question,
+                    extra_guidance = self.get_prompt_semantic_checklist(api)
                 )
             elif task in ["BIRD", "spider"]:
                 ce = "Some few-shot examples after column exploration may be helpful:\n" + pre_info if pre_info else ""
                 return table_info + "\n" + ce
-        refine_prompt = table_info + "\n"
+        refine_prompt = "Schema Summary:\n" + summary_block + "\n\n"
+        refine_prompt += "Raw Schema (secondary reference):\n" + table_info + "\n"
         # refine_prompt += "Begin Exploring Related Columns\n" + response_pre_txt + "\nRefined SQLs and results:\n" + pre_info + "End Exploring Related Columns\n" if pre_info else ""
         refine_prompt += "Some few-shot examples after column exploration may be helpful:\n" + pre_info if pre_info else ""
 
@@ -128,6 +198,7 @@ class Prompts:
         refine_prompt += f'SQL usage example: {self.get_prompt_dialect_basic(api)}\n'
         refine_prompt += f"Follow the answer format like: {format_csv}.\n" if format_csv else ""
         refine_prompt += "Here are some useful tips for answering:\n"
+        refine_prompt += "Prefer using the schema summary as the primary context. Only fall back to the raw schema when the summary is missing a necessary table, column, or join key.\n"
         
         refine_prompt += self.get_prompt_dialect_list_all_tables(table_struct, api)
         # refine_prompt += self.get_prompt_fuzzy_query()
@@ -142,12 +213,14 @@ class Prompts:
         # refine_prompt += "If asked two tables, you should reply with the last one instead of combining two tables. e.g. Identifying the top five states ... examine the state that ranks fourth overall and identify its top five counties. You should only answer top five counties.\n"
         # if api == "snowflake":
         #     refine_prompt += "Use ST_DISTANCE to calculate distance between two geographic points for more accurate answer.\n"
+        refine_prompt += self.get_prompt_semantic_checklist(api)
         refine_prompt += self.get_prompt_decimal_places()
         
         return refine_prompt
 
     def get_self_consistency_prompt(self, task, format_csv):
         self_consistency_prompt = f"Please check the answer again by reviewing task:\n {task}\n, reviewing Relevant Tables and Columns and Possible Conditions and then give the final SQL query. Don't output other queries. If you think the answer is right, just output the current SQL.\n" 
+        self_consistency_prompt += "Re-check semantic correctness, not just executability. Verify entity meaning, aggregation grain, denominator choice, and join keys before deciding the SQL is correct.\n"
         self_consistency_prompt += self.get_prompt_decimal_places()
         self_consistency_prompt += f"The answer format should be like: {format_csv}\n" if format_csv else ""
 

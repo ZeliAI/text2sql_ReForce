@@ -10,7 +10,33 @@ from sql import SqlEnv
 import time
 import json
 
-def execute(question, table_info, args, csv_save_path, log_save_path, sql_save_path, search_directory, format_csv, sql_data):
+def build_schema_summary(question, table_info, args, search_directory, sql_data, api_name):
+    if not args.do_schema_summary:
+        return None
+
+    summary_txt_path = os.path.join(search_directory, "schema_summary.txt")
+    summary_log_path = os.path.join(search_directory, "schema_summary.log")
+    if os.path.exists(summary_txt_path) and not args.revote:
+        with open(summary_txt_path) as f:
+            return f.read()
+
+    logger = initialize_logger(summary_log_path)
+    model_name = args.schema_summary_model or args.generation_model
+    if model_name is None:
+        logger.info("No schema summary model configured, skip.")
+        return None
+
+    chat_session = ChatClass(args.azure, model_name, temperature=args.temperature)
+    chat_session.set_debug_logger(logger)
+    prompt = prompt_all.get_schema_summary_prompt(api_name, table_info, question)
+    logger.info("[Schema Summary Prompt]\n" + prompt + "\n[Schema Summary Prompt]")
+    summary = chat_session.get_model_response_txt(prompt).strip()
+    logger.info("[Schema Summary Response]\n" + summary + "\n[Schema Summary Response]")
+    with open(summary_txt_path, "w") as f:
+        f.write(summary)
+    return summary
+
+def execute(question, table_info, schema_summary, args, csv_save_path, log_save_path, sql_save_path, search_directory, format_csv, sql_data):
     db_id = None
     if full_db_id:
         db_id = full_db_id[sql_data]
@@ -71,9 +97,9 @@ def execute(question, table_info, args, csv_save_path, log_save_path, sql_save_p
 
     # answer
     if args.do_self_refinement:
-        agent.self_refine(args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=args.task)
+        agent.self_refine(args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=args.task, schema_summary=schema_summary)
     elif args.generation_model:
-        agent.gen(args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=args.task)
+        agent.gen(args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=args.task, schema_summary=schema_summary)
     if args.generation_model:
         agent.sql_env.close_db()
     
@@ -136,6 +162,7 @@ def process_sql_data(sql_data):
     table_info = get_table_info(args.db_path, sql_data, agent_format.api, clear_des=True, full_tb_info=full_tb_info)
     if len(table_info) > 300000:
         print(f"Table info len: {len(table_info)}, return")
+    schema_summary = build_schema_summary(question, table_info, args, search_directory, sql_data, agent_format.api)
 
     if args.do_format_restriction:
         if args.use_gold_format:
@@ -170,7 +197,7 @@ def process_sql_data(sql_data):
             thread = threading.Thread(
                 target=execute,
                 args=(
-                    question, table_info, args,
+                    question, table_info, schema_summary, args,
                     csv_save_pathi, log_pathi, sql_save_pathi,
                     search_directory, format_csv, sql_data
                 )
@@ -193,13 +220,13 @@ def process_sql_data(sql_data):
         if "result.sql" not in os.listdir(search_directory):
             if any(file.endswith('.sql') for file in os.listdir(search_directory) if os.path.isfile(os.path.join(search_directory, file))):
                 # After all processes have completed, perform the vote result
-                agent_format.vote_result(search_directory, args, sql_paths, table_info, question)
+                agent_format.vote_result(search_directory, args, sql_paths, table_info, question, schema_summary=schema_summary)
             else:
                 print(f"{sql_data}: Empty")
     else:
         # Directly execute the task
         execute(
-            question, table_info, args,
+            question, table_info, schema_summary, args,
             agent_format.csv_save_name, agent_format.log_save_name, agent_format.sql_save_name,
             search_directory, format_csv, sql_data
         )
@@ -228,6 +255,8 @@ if __name__ == '__main__':
     parser.add_argument('--max_iter', type=int, default=5)
     parser.add_argument('--temperature', type=float, default=1)
     parser.add_argument('--early_stop', action="store_true")
+    parser.add_argument('--do_schema_summary', action="store_true")
+    parser.add_argument('--schema_summary_model', type=str, default=None)
 
     parser.add_argument('--do_vote', action="store_true")
     parser.add_argument('--revote', action="store_true")
@@ -235,6 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('--random_vote_for_tie', action="store_true")
     parser.add_argument('--model_vote', type=str, default=None)
     parser.add_argument('--final_choose', action="store_true")
+    parser.add_argument('--selector_model', type=str, default=None)
 
     parser.add_argument('--save_all_results', action="store_true")
     parser.add_argument('--rerun', action="store_true")

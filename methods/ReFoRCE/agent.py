@@ -9,6 +9,7 @@ from prompt import Prompts
 from typing import Type
 from chat import GPTChat
 import sys
+import re
 csv.field_size_limit(sys.maxsize)
 
 class REFORCE:
@@ -28,6 +29,7 @@ class REFORCE:
         self.complete_sql_save_path = os.path.join(search_directory, self.sql_save_name)
         self.complete_log_save_path = os.path.join(search_directory, self.log_save_name)
         self.complete_vote_log_path = os.path.join(search_directory, self.log_vote_name)
+        self.complete_selector_log_path = os.path.join(search_directory, "selector.log")
 
         self.prompt_class = prompt_class
         self.max_try = 3
@@ -166,12 +168,12 @@ class REFORCE:
 
         return pre_info, response_pre_txt, max_try
 
-    def self_refine(self, args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=None):
+    def self_refine(self, args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=None, schema_summary=None):
         itercount = 0
         results_values = []
         results_tables = []
 
-        self_refine_prompt = self.prompt_class.get_self_refine_prompt(table_info, task, pre_info, question, self.api, format_csv, table_struct, args.omnisql_format_pth)
+        self_refine_prompt = self.prompt_class.get_self_refine_prompt(table_info, task, pre_info, question, self.api, format_csv, table_struct, args.omnisql_format_pth, schema_summary=schema_summary)
 
         error_rec = []
         while itercount < args.max_iter:
@@ -264,8 +266,8 @@ class REFORCE:
             logger.info("Max Iter, remove file")
         print(f"{self.sql_id}: chat_session len: {self.chat_session.get_message_len()}")
 
-    def gen(self, args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=None):
-        gen_prompt = self.prompt_class.get_self_refine_prompt(table_info, task, pre_info, question, self.api, format_csv, table_struct, args.omnisql_format_pth)
+    def gen(self, args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=None, schema_summary=None):
+        gen_prompt = self.prompt_class.get_self_refine_prompt(table_info, task, pre_info, question, self.api, format_csv, table_struct, args.omnisql_format_pth, schema_summary=schema_summary)
         logger.info("[Gen]\n" + gen_prompt + "\n[Gen]")
         max_try = self.max_try
         while max_try > 0:
@@ -286,52 +288,45 @@ class REFORCE:
             with open(sql_save_path, "w") as f:
                 f.write(response)
 
-    def model_vote(self, result, sql_paths, search_directory, args, table_info, task):
-        chat_session = GPTChat(args.azure, args.model_vote)
-        max_value = max(result.values())
-        max_dict = {k: v for k, v in result.items() if v == max_value}
-        # print(max_dict)
+    def selector_choose(self, candidate_sqls, sql_paths, search_directory, args, question, schema_summary):
+        model_name = args.selector_model or args.model_vote or args.generation_model
+        if not model_name:
+            return None
+        chat_session = GPTChat(args.azure, model_name, temperature=args.temperature)
+        payload = ""
+        valid_candidates = []
+        for sql_name in candidate_sqls:
+            sql_path = os.path.join(search_directory, sql_name)
+            csv_path = os.path.join(search_directory, sql_paths[sql_name])
+            if not (os.path.exists(sql_path) and os.path.exists(csv_path)):
+                continue
+            valid_candidates.append(sql_name)
+            with open(sql_path) as f:
+                sql_text = f.read().strip()
+            with open(csv_path) as f:
+                csv_text = hard_cut(f.read(), 5000)
+            payload += f"SQL file: {sql_name}\n```sql\n{sql_text}\n```\n"
+            payload += f"CSV file: {sql_paths[sql_name]}\n```csv\n{csv_text}\n```\n\n"
+        if not valid_candidates:
+            return None
 
-        prompt = f"You are gieven DB info, task and candidate SQLs and their results. You should choose the most correct one based on database info:\n{table_info}. The task is: {task}. Here are some candidate sqls and answers: \n"
-        for sql, counts in max_dict.items():
-            sql_path = os.path.join(search_directory, sql)
-            csv_path = os.path.join(search_directory, sql_paths[sql])
+        prompt = self.prompt_class.get_selector_prompt(question, schema_summary, payload)
+        raw_response = chat_session.get_model_response_txt(prompt)
+        match = re.search(r'(?im)^\[selected_sql\]\s*(.+?)\s*(?:^\[reason\]|\Z)', raw_response, re.S)
+        selected_name = match.group(1).strip() if match else ""
+        filename_match = re.search(r'([A-Za-z0-9_.-]*result\.sql)\b', selected_name)
+        selected_name = filename_match.group(1) if filename_match else selected_name
+        if selected_name not in valid_candidates:
+            fallback_match = re.search(r'([A-Za-z0-9_.-]*result\.sql)\b', raw_response)
+            selected_name = fallback_match.group(1) if fallback_match and fallback_match.group(1) in valid_candidates else None
 
-            if os.path.exists(sql_path) and os.path.exists(csv_path):
-                prompt += "SQL file name: " + sql + "\n"
-                with open(sql_path) as f:
-                    prompt += f.read()
-                prompt += "CSV file name: " + sql_paths[sql] + "\n"
-                with open(csv_path) as f:
-                    prompt += hard_cut(f.read(), 5000)
+        with open(self.complete_selector_log_path, "w") as f:
+            f.write("[Selector Prompt]\n" + prompt + "\n[Selector Prompt]\n")
+            f.write("[Selector Response]\n" + raw_response + "\n[Selector Response]\n")
 
-        max_try = 3
-        prompt += "Compare the SQL and results of each answer, think step by step and choose one SQL as the correct answer. Output thinking process and the name of sql in ```plaintext\nxxx.sql``` format. You should not ingnore 'plaintext'.\n"
-        prompt += "For results with null or zero values, they tend to be wrong answer.\n"
-        prompt += "You reasoning step should be: 1. Exclude unreasonable results. 2. Check results if aligning with task description. 3. Analyze SQL if aligning with task description.\n"
-        response = chat_session.get_model_response(prompt, "plaintext")
-        while max_try > 0:
-            if not response or not isinstance(response, list) or ".sql" not in response[0]:
-                print(f"{search_directory}, remained max_try for voting: {max_try}, {response}")
-                response = chat_session.get_model_response("Please output the name of sql in ```plaintext\nxxx.sql``` format. You should not ingnore 'plaintext'.", "plaintext")
-            else:
-                break
-            max_try -= 1
-        if max_try == 0:
-            print(f"{search_directory} Empty")
-            return
-        with open(os.path.join(search_directory, response[0].strip())) as f:
-            selected_sql = f.read()
-        sql_env = SqlEnv()
-        if sql_env.execute_sql_api(selected_sql, self.sql_id, self.complete_csv_save_path, api=self.api, sqlite_path=self.sqlite_path) == '0':
-            with open(self.complete_sql_save_path, "w") as f:
-                f.write(selected_sql)
-            with open(self.complete_vote_log_path, "w") as f:
-                f.write("[Vote]\n"+prompt+"\n[Vote]")
-                f.write(chat_session.messages[-1]['content'])
-        sql_env.close_db()
+        return selected_name if selected_name in valid_candidates else None
 
-    def vote_result(self, search_directory, args, sql_paths, table_info, task):
+    def vote_result(self, search_directory, args, sql_paths, table_info, task, schema_summary=None):
         # filter answer
         result = {}
         result_name = {}
@@ -361,16 +356,12 @@ class REFORCE:
             if not result_all and not all_values:
                 print(f"{search_directory} empty results")
                 return
-            elif args.model_vote:
-                assert all(v == 0 for k, v in result_all.items()), result
-                result_all = {k: v + 1 for k, v in result_all.items()}
-                # print(result_all)
-                self.model_vote(result_all, sql_paths, search_directory, args, table_info, task)
-            elif args.final_choose:
-                csv_pth = all_values[0]
-                shutil.copy2(csv_pth.replace(".csv", ".sql"), self.complete_sql_save_path)
-                shutil.copy2(csv_pth, self.complete_csv_save_path) 
-                shutil.copy2(csv_pth.replace("result.csv", "log.log"), self.complete_log_save_path)               
+            elif args.model_vote or args.final_choose:
+                selected_name = self.selector_choose(list(result_all.keys()), sql_paths, search_directory, args, task, schema_summary)
+                if selected_name:
+                    shutil.copy2(os.path.join(search_directory, selected_name), self.complete_sql_save_path)
+                    shutil.copy2(os.path.join(search_directory, sql_paths[selected_name]), self.complete_csv_save_path)
+                    shutil.copy2(os.path.join(search_directory, selected_name.replace(self.sql_save_name, self.log_save_name)), self.complete_log_save_path)
             else:
                 print(f"{search_directory} Empty, return")
             return
@@ -384,8 +375,12 @@ class REFORCE:
         has_tie = num_with_max_vote > (max_vote + 1)
         if has_tie:
             assert num_with_max_vote % (max_vote + 1) == 0, result_name
-            if args.model_vote:
-                self.model_vote(result, sql_paths, search_directory, args, table_info, task)
+            if args.model_vote or args.final_choose:
+                selected_name = self.selector_choose(list(sorted_dict.keys()), sql_paths, search_directory, args, task, schema_summary)
+                if selected_name:
+                    shutil.copy2(os.path.join(search_directory, selected_name), self.complete_sql_save_path)
+                    shutil.copy2(os.path.join(search_directory, sql_paths[selected_name]), self.complete_csv_save_path)
+                    shutil.copy2(os.path.join(search_directory, selected_name.replace(self.sql_save_name, self.log_save_name)), self.complete_log_save_path)
                 return
             if not args.random_vote_for_tie:
                 print(f"{search_directory} has_tie {sorted_dict}, return")

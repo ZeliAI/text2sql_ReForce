@@ -81,6 +81,28 @@ PYTHON_BIN=python3
 - 不建议把具体模型、并发、任务数也放进 `.env`
 - 模型和运行参数放在 [config.env](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/config.env)
 
+如果你要通过第三方 OpenAI 兼容网关调用 Claude，可以这样配：
+
+```bash
+LLM_PROVIDER=simpleai
+SIMPLEAI_BASE_URL=https://key.simpleai.com.cn/v1
+SIMPLEAI_API_KEY=your-simpleai-key
+```
+
+这时模型名可以直接写在 `config.env`，例如：
+
+```bash
+LLM_MODEL=claude-opus-4-6
+```
+
+目前 `simpleai` 这边可直接尝试的模型写法包括：
+
+```bash
+LLM_MODEL=claude-opus-4-6
+LLM_MODEL=claude-sonnet-4-6
+LLM_MODEL=claude-haiku-4-5-20251001
+```
+
 ### 1.5 配置运行参数
 
 主要运行参数放在：
@@ -285,20 +307,30 @@ LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
    - 默认走 `https://api.moonshot.ai/v1`
    - 使用 `MOONSHOT_API_KEY` 或 `LLM_API_KEY`
 
-2. `LLM_PROVIDER=openai`
+2. `LLM_PROVIDER=simpleai`
+   - 默认走 `https://key.simpleai.com.cn/v1`
+   - 使用 `SIMPLEAI_API_KEY`
+   - 当前可直接尝试的模型包括：`claude-opus-4-6`、`claude-sonnet-4-6`、`claude-haiku-4-5-20251001`
+
+3. `LLM_PROVIDER=openai`
    - 使用 `OPENAI_API_KEY`
    - 可选 `OPENAI_BASE_URL`
 
-3. `LLM_PROVIDER=openai_compatible`
+4. `LLM_PROVIDER=openai_compatible`
    - 使用 `LLM_BASE_URL`
    - 使用 `LLM_API_KEY`
    - 适合 OpenAI-compatible API 网关
 
-4. `LLM_PROVIDER=local`
+5. `LLM_PROVIDER=local`
    - 也是走 `LLM_BASE_URL + LLM_API_KEY`
    - 适合本地部署、OpenAI-compatible 接口
 
 ### 4.2 如果要扩新 provider，改哪里
+
+如果你现在要再新增一个 provider，先判断它是不是 OpenAI-compatible：
+
+- 如果兼容 OpenAI `chat.completions.create`，优先沿用现有主链路，只补 provider 路由和必要的响应清洗。
+- 如果不兼容，再单独加请求格式适配。
 
 最主要改这几个位置：
 
@@ -372,19 +404,28 @@ LLM_MODEL=my-model
 2. 在 `.env` 里写：
 
 ```bash
-LLM_BASE_URL=https://api.myvendor.com/v1
-LLM_API_KEY=your-key
+MYVENDOR_BASE_URL=https://api.myvendor.com/v1
+MYVENDOR_API_KEY=your-key
 ```
 
 3. 在 `resolve_provider()` 里新增：
 
 ```python
 elif provider == "myvendor":
-    base_url = os.environ.get("LLM_BASE_URL") or "https://api.myvendor.com/v1"
-    api_key = os.environ.get("MYVENDOR_API_KEY") or api_key
+    base_url = os.environ.get("MYVENDOR_BASE_URL") or "https://api.myvendor.com/v1"
+    api_key = os.environ.get("MYVENDOR_API_KEY") or os.environ.get("LLM_API_KEY") or api_key
 ```
 
-4. 如果协议兼容 OpenAI，就结束了  
+4. 如果它其实完全兼容 OpenAI，而且你也不需要特殊清洗，其实还可以不新增 provider，直接用：
+
+```bash
+LLM_PROVIDER=openai_compatible
+LLM_BASE_URL=https://api.myvendor.com/v1
+LLM_API_KEY=your-key
+LLM_MODEL=my-model
+```
+
+5. 如果协议兼容 OpenAI，就结束了  
    如果不兼容，再在 `get_http_response()` 或 `get_response()` 里加分支。
 
 ## 5. 当前推荐理解
