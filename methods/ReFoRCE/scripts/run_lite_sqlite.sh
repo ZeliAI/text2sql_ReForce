@@ -7,6 +7,7 @@ load_env_defaults() {
   while IFS='=' read -r key value; do
     key="${key#"${key%%[![:space:]]*}"}"
     key="${key%"${key##*[![:space:]]}"}"
+    value="${value%%[[:space:]]#*}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
     if [ -z "$key" ] || [[ "$key" == \#* ]]; then
@@ -23,7 +24,6 @@ load_env_defaults config.env
 PYTHON_BIN=${PYTHON_BIN:-python3}
 
 MODEL=${1:-${LLM_MODEL:-kimi-k2.6}}
-OUTPUT_PATH=${OUTPUT_PATH:-output/${MODEL}-lite-sqlite-log}
 NUM_WORKERS=${NUM_WORKERS:-4}
 MAX_ITER=${MAX_ITER:-3}
 TEMPERATURE=${LLM_TEMPERATURE:-1}
@@ -41,6 +41,14 @@ SQLITE_DIR="../../spider2-lite/resource/databases/spider2-localdb"
 
 if [ "$MODEL" = "moonshot-v1-128k" ] || [ "$MODEL" = "moonshot-v1-64k" ]; then
   export THINK_OR_NOT=false
+fi
+
+if [ -z "${OUTPUT_PATH:-}" ]; then
+  THINKING_LABEL="no-thinking"
+  if [ "${THINK_OR_NOT:-false}" = "true" ] || [ "${THINK_OR_NOT:-false}" = "1" ] || [ "${THINK_OR_NOT:-false}" = "yes" ]; then
+    THINKING_LABEL="thinking"
+  fi
+  OUTPUT_PATH="output/${MODEL}-lite-sqlite-${THINKING_LABEL}-limit${TASK_LIMIT}-offset${TASK_OFFSET}"
 fi
 
 if [ "$ADD_TIMESTAMP" = "true" ] || [ "$ADD_TIMESTAMP" = "1" ] || [ "$ADD_TIMESTAMP" = "yes" ]; then

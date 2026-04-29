@@ -35,6 +35,7 @@ class BaseChat(ABC):
         self.retry_max_seconds = float(os.environ.get("LLM_RETRY_MAX_SECONDS", "30"))
         self.last_request_payload = None
         self.provider = ""
+        self.last_heartbeat_bucket = None
 
     def set_debug_logger(self, logger):
         self.debug_logger = logger
@@ -200,6 +201,7 @@ class GPTChat(BaseChat):
         self.base_url = None
         self.api_key = None
         self.timeout = float(os.environ.get("LLM_TIMEOUT", "120"))
+        self.kimi_thinking_heartbeat_timeout = float(os.environ.get("KIMI_THINKING_HEARTBEAT_TIMEOUT_SECONDS", "420"))
         max_tokens = os.environ.get("LLM_MAX_TOKENS")
         self.max_tokens = int(max_tokens) if max_tokens else None
         self.provider = os.environ.get("LLM_PROVIDER", "").strip().lower()
@@ -210,6 +212,11 @@ class GPTChat(BaseChat):
             if item.strip()
         }
         self.supports_thinking_param = self.provider == "moonshot" and self.model not in unsupported_thinking_models
+        self.enable_reasoning_stream = (
+            self.provider == "moonshot"
+            and self.model.startswith("kimi")
+            and self.think_or_not
+        )
 
         if not azure:
             base_url, api_key = self.resolve_provider()
@@ -255,23 +262,27 @@ class GPTChat(BaseChat):
 
     def resolve_provider(self):
         provider = self.provider
-        openai_base_url = os.environ.get("OPENAI_BASE_URL")
-        llm_base_url = os.environ.get("LLM_BASE_URL")
-        base_url = openai_base_url or llm_base_url
-        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
+        base_url = None
+        api_key = None
 
         if provider == "moonshot":
-            base_url = os.environ.get("MOONSHOT_BASE_URL") or llm_base_url or "https://api.moonshot.ai/v1"
-            api_key = os.environ.get("MOONSHOT_API_KEY") or os.environ.get("LLM_API_KEY") or api_key
+            base_url = os.environ.get("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
+            api_key = os.environ.get("MOONSHOT_API_KEY")
         elif provider == "openai":
-            base_url = openai_base_url or None
-            api_key = os.environ.get("OPENAI_API_KEY") or api_key
+            base_url = os.environ.get("OPENAI_BASE_URL") or None
+            api_key = os.environ.get("OPENAI_API_KEY")
         elif provider == "simpleai":
             base_url = os.environ.get("SIMPLEAI_BASE_URL") or "https://key.simpleai.com.cn/v1"
-            api_key = os.environ.get("SIMPLEAI_API_KEY") or os.environ.get("LLM_API_KEY") or api_key
-        elif provider in {"openai_compatible", "local"}:
-            base_url = llm_base_url or base_url
-            api_key = os.environ.get("LLM_API_KEY") or api_key
+            api_key = os.environ.get("SIMPLEAI_API_KEY")
+        elif provider == "openai_compatible":
+            base_url = os.environ.get("OPENAI_COMPATIBLE_BASE_URL") or os.environ.get("LLM_BASE_URL")
+            api_key = os.environ.get("OPENAI_COMPATIBLE_API_KEY") or os.environ.get("LLM_API_KEY")
+        elif provider == "local":
+            base_url = os.environ.get("LOCAL_BASE_URL") or os.environ.get("LLM_BASE_URL")
+            api_key = os.environ.get("LOCAL_API_KEY") or os.environ.get("LLM_API_KEY")
+        else:
+            base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("LLM_BASE_URL")
+            api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LLM_API_KEY")
 
         if base_url:
             base_url = base_url.rstrip("/")
@@ -322,6 +333,114 @@ class GPTChat(BaseChat):
                 self._debug("LLM retry", f"attempt={attempt}, sleep={delay:.2f}s, error={exc}")
                 time.sleep(delay)
 
+    def _normalize_stream_delta_text(self, value):
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, list):
+            parts = []
+            for item in value:
+                if isinstance(item, str):
+                    parts.append(item)
+                    continue
+                text_value = getattr(item, "text", None)
+                if text_value:
+                    parts.append(text_value)
+                    continue
+                if isinstance(item, dict):
+                    if item.get("text"):
+                        parts.append(item["text"])
+                    elif item.get("content"):
+                        parts.append(str(item["content"]))
+            return "".join(parts)
+        text_value = getattr(value, "text", None)
+        if text_value:
+            return text_value
+        return str(value)
+
+    def _get_stream_delta_text(self, delta, attr_name):
+        if delta is None:
+            return ""
+        value = getattr(delta, attr_name, None)
+        if value is None and isinstance(delta, dict):
+            value = delta.get(attr_name)
+        return self._normalize_stream_delta_text(value)
+
+    def _print_reasoning_progress(self, start_time, reasoning_chunks, content_started):
+        if content_started or reasoning_chunks <= 0:
+            return
+        elapsed = int(max(0, time.time() - start_time))
+        print(f"\r[Kimi thinking... {elapsed}s, {reasoning_chunks} chunks]", end="", flush=True)
+        if self.debug_logger:
+            if elapsed < 30:
+                bucket = elapsed // 5
+            else:
+                bucket = ("late", elapsed // 30)
+            if self.last_heartbeat_bucket != bucket:
+                self.last_heartbeat_bucket = bucket
+                self.debug_logger.info(f"Kimi thinking heartbeat: elapsed={elapsed}s chunks={reasoning_chunks}")
+
+    def _check_reasoning_timeout(self, start_time, content_started):
+        if not self.enable_reasoning_stream or content_started:
+            return
+        elapsed = time.time() - start_time
+        if elapsed > self.kimi_thinking_heartbeat_timeout:
+            raise TimeoutError(
+                f"Kimi thinking exceeded {int(self.kimi_thinking_heartbeat_timeout)}s before answer content started."
+            )
+
+    def _stream_chat_response(self, kwargs):
+        content_parts = []
+        reasoning_chunks = 0
+        content_started = False
+        start_time = time.time()
+        stream = self.with_retry(lambda: self.client.chat.completions.create(stream=True, **kwargs))
+
+        try:
+            for chunk in stream:
+                choices = getattr(chunk, "choices", None) or []
+                if not choices:
+                    continue
+                delta = getattr(choices[0], "delta", None)
+                reasoning_text = self._get_stream_delta_text(delta, "reasoning_content")
+                content_text = self._get_stream_delta_text(delta, "content")
+
+                if reasoning_text:
+                    reasoning_chunks += 1
+                    self._print_reasoning_progress(start_time, reasoning_chunks, content_started)
+                    self._check_reasoning_timeout(start_time, content_started)
+
+                if content_text:
+                    if not content_started and reasoning_chunks > 0:
+                        print()
+                    content_started = True
+                    content_parts.append(content_text)
+                    print(content_text, end="", flush=True)
+        finally:
+            close_fn = getattr(stream, "close", None)
+            if callable(close_fn):
+                close_fn()
+
+        if reasoning_chunks or content_parts:
+            print(flush=True)
+
+        main_content = clean_provider_response_text("".join(content_parts), self.provider)
+        self._debug(
+            "LLM stream",
+            json.dumps(
+                {
+                    "model": self.model,
+                    "temperature": self.temperature,
+                    "request": self.last_request_payload,
+                    "content_text": main_content,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+        return main_content
+
     def get_http_response(self) -> str:
         payload = {
             "model": self.model,
@@ -332,6 +451,8 @@ class GPTChat(BaseChat):
             payload["max_tokens"] = self.max_tokens
         if not self.think_or_not and self.supports_thinking_param:
             payload["thinking"] = {"type": "disabled"}
+        if self.enable_reasoning_stream:
+            payload["stream"] = True
         self.last_request_payload = payload
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
@@ -345,13 +466,71 @@ class GPTChat(BaseChat):
         )
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                if self.enable_reasoning_stream:
+                    return self._read_http_stream_response(response)
                 body = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
         return clean_provider_response_text(body["choices"][0]["message"]["content"], self.provider)
 
+    def _read_http_stream_response(self, response) -> str:
+        content_parts = []
+        reasoning_chunks = 0
+        content_started = False
+        start_time = time.time()
+
+        for raw_line in response:
+            line = raw_line.decode("utf-8", errors="ignore").strip()
+            if not line or not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if payload == "[DONE]":
+                break
+            try:
+                chunk = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta") or {}
+            reasoning_text = self._get_stream_delta_text(delta, "reasoning_content")
+            content_text = self._get_stream_delta_text(delta, "content")
+
+            if reasoning_text:
+                reasoning_chunks += 1
+                self._print_reasoning_progress(start_time, reasoning_chunks, content_started)
+                self._check_reasoning_timeout(start_time, content_started)
+
+            if content_text:
+                if not content_started and reasoning_chunks > 0:
+                    print()
+                content_started = True
+                content_parts.append(content_text)
+                print(content_text, end="", flush=True)
+
+        if reasoning_chunks or content_parts:
+            print(flush=True)
+
+        main_content = clean_provider_response_text("".join(content_parts), self.provider)
+        self._debug(
+            "LLM http stream",
+            json.dumps(
+                {
+                    "model": self.model,
+                    "temperature": self.temperature,
+                    "request": self.last_request_payload,
+                    "content_text": main_content,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+        return main_content
+
     def get_response(self, prompt) -> str:
+        self.last_heartbeat_bucket = None
         self.messages.append({"role": "user", "content": prompt})
         if self.http_mode:
             main_content = self.with_retry(self.get_http_response)
@@ -377,8 +556,11 @@ class GPTChat(BaseChat):
             if not self.think_or_not and self.supports_thinking_param:
                 kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
             self.last_request_payload = kwargs
-            response = self.with_retry(lambda: self.client.chat.completions.create(**kwargs))
-            main_content = clean_provider_response_text(response.choices[0].message.content, self.provider)
+            if self.enable_reasoning_stream:
+                main_content = self._stream_chat_response(kwargs)
+            else:
+                response = self.with_retry(lambda: self.client.chat.completions.create(**kwargs))
+                main_content = clean_provider_response_text(response.choices[0].message.content, self.provider)
 
         self.messages.append({"role": "assistant", "content": main_content})
         return main_content

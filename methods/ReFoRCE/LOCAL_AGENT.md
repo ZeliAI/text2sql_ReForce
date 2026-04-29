@@ -66,25 +66,31 @@ find ../../spider2-lite/resource/databases/spider2-localdb -name "*.sqlite" | he
 把密钥和基础地址放在：
 
 - [`.env`](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/.env)
+- [`.env.example`](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/.env.example)
 
 推荐格式：
 
 ```bash
-LLM_BASE_URL=https://api.moonshot.ai/v1
-LLM_API_KEY=your-api-key
-PYTHON_BIN=python3
+MOONSHOT_BASE_URL=https://api.moonshot.ai/v1
+MOONSHOT_API_KEY=your-moonshot-api-key
+
+SIMPLEAI_BASE_URL=https://key.simpleai.com.cn/v1
+SIMPLEAI_API_KEY=your-simpleai-api-key
+
+PYTHON_BIN=/path/to/your/python
 ```
 
 说明：
 
-- `.env` 只放敏感信息和机器相关信息，例如 `LLM_API_KEY`
+- 新机器可以先复制 `.env.example` 为 `.env`，再按 provider 填值
+- `.env` 只放敏感信息和机器相关信息，例如各 provider 的 `*_API_KEY`
+- `PYTHON_BIN` 建议指向实际运行环境里的解释器，例如 `conda` 环境中的 `python`
 - 不建议把具体模型、并发、任务数也放进 `.env`
 - 模型和运行参数放在 [config.env](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/config.env)
 
-如果你要通过第三方 OpenAI 兼容网关调用 Claude，可以这样配：
+如果你要通过 `simpleai` 调 Claude，可以这样配：
 
 ```bash
-LLM_PROVIDER=simpleai
 SIMPLEAI_BASE_URL=https://key.simpleai.com.cn/v1
 SIMPLEAI_API_KEY=your-simpleai-key
 ```
@@ -99,6 +105,7 @@ LLM_MODEL=claude-opus-4-6
 
 ```bash
 LLM_MODEL=claude-opus-4-6
+LLM_MODEL=claude-opus-4-7
 LLM_MODEL=claude-sonnet-4-6
 LLM_MODEL=claude-haiku-4-5-20251001
 ```
@@ -118,7 +125,7 @@ LLM_TEMPERATURE=0.6
 LLM_TIMEOUT=120
 LLM_MAX_TOKENS=4096
 THINK_OR_NOT=false
-THINKING_UNSUPPORTED_MODELS=moonshot-v1-128k
+THINKING_UNSUPPORTED_MODELS=moonshot-v1-128k,moonshot-v1-32k
 
 LLM_RETRY_MAX=8
 LLM_RETRY_BASE_SECONDS=2
@@ -136,6 +143,16 @@ FINAL_CHOOSE=false
 
 OUTPUT_PATH=output/moonshot-v1-128k-lite-sqlite-10-no-thinking
 ADD_TIMESTAMP=true
+```
+
+补充说明：
+
+- `run_lite_sqlite.sh` 和 `run_eval.sh` 现在都会自动读取 `.env` 与 `config.env`
+- `config.env` 支持 `KEY=value # 注释` 这种行尾注释写法
+- 如果不显式传 `OUTPUT_PATH`，脚本会自动生成目录名，格式大致是：
+
+```text
+output/<model>-lite-sqlite-<thinking-or-not>-limit<TASK_LIMIT>-offset<TASK_OFFSET>-YYYYMMDD-HHMMSS
 ```
 
 ### 1.6 先跑一个本地 smoke test
@@ -176,7 +193,8 @@ bash scripts/run_lite_sqlite.sh
 2. 自动读取 `config.env`
 3. 只跑 Lite SQLite 子任务
 4. 调用 [run.py](/Users/ying/Documents/老凤/text2sql/ReForce/ReFoRCE/methods/ReFoRCE/run.py)
-5. 结果输出到 `OUTPUT_PATH` 对应目录
+5. 如果没有传 `OUTPUT_PATH`，自动生成一个带模型/模式/limit/offset 的输出目录
+6. 在终端打印带时间戳的关键阶段进度，例如当前第几题、是否进入 `schema_summary`、`self_refine`、`vote_merge`
 
 如果 `ADD_TIMESTAMP=true`，最终目录会是：
 
@@ -246,6 +264,12 @@ FINAL_CHOOSE=true
 LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 ```
 
+如果你要手动验证 `local019`，当前数据文件中它对应：
+
+```bash
+LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 LLM_MODEL=kimi-k2.6 THINK_OR_NOT=false LLM_TEMPERATURE=0.6 bash scripts/run_lite_sqlite.sh
+```
+
 开启后，每个样本对应的 `log.log` 会额外记录：
 
 - `[LLM call]`
@@ -264,6 +288,16 @@ LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 这些日志写在每个样本自己的目录里，例如：
 
 - `output/<run-name>/local019/log.log`
+
+同时，终端会直接打印带时间戳的阶段进度，例如：
+
+```text
+[2026-04-29 15:42:10] [1/1] [local019] task_start | model=kimi-k2.6, vote=False, max_iter=1
+[2026-04-29 15:42:10] [1/1] [local019] schema_summary_start | model=kimi-k2.6
+[2026-04-29 15:45:31] [1/1] [local019] schema_summary_done | output/.../schema_summary.txt
+[2026-04-29 15:45:31] [1/1] [local019] self_refine_start | branch=main, max_iter=1
+[2026-04-29 15:46:02] [1/1] [local019] task_done | elapsed=232s
+```
 
 ### 3.1 当前 retry 规则
 
@@ -305,24 +339,25 @@ LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 
 1. `LLM_PROVIDER=moonshot`
    - 默认走 `https://api.moonshot.ai/v1`
-   - 使用 `MOONSHOT_API_KEY` 或 `LLM_API_KEY`
+   - 使用 `.env` 中的 `MOONSHOT_BASE_URL` / `MOONSHOT_API_KEY`
+   - 常用模型包括：`kimi-k2.6`、`moonshot-v1-128k`、`moonshot-v1-32k`
+   - `kimi-k2.6` 非思考模式建议 `temperature=0.6`，思考模式建议 `temperature=1`
+   - `kimi-k2.6` 在思考模式下默认走流式调用
 
 2. `LLM_PROVIDER=simpleai`
    - 默认走 `https://key.simpleai.com.cn/v1`
-   - 使用 `SIMPLEAI_API_KEY`
-   - 当前可直接尝试的模型包括：`claude-opus-4-6`、`claude-sonnet-4-6`、`claude-haiku-4-5-20251001`
+   - 使用 `.env` 中的 `SIMPLEAI_BASE_URL` / `SIMPLEAI_API_KEY`
+   - 当前可直接尝试的模型包括：`claude-opus-4-6`、`claude-opus-4-7`、`claude-sonnet-4-6`、`claude-haiku-4-5-20251001`
 
 3. `LLM_PROVIDER=openai`
-   - 使用 `OPENAI_API_KEY`
-   - 可选 `OPENAI_BASE_URL`
+   - 使用 `.env` 中的 `OPENAI_BASE_URL` / `OPENAI_API_KEY`
 
 4. `LLM_PROVIDER=openai_compatible`
-   - 使用 `LLM_BASE_URL`
-   - 使用 `LLM_API_KEY`
+   - 使用 `.env` 中的 `OPENAI_COMPATIBLE_BASE_URL` / `OPENAI_COMPATIBLE_API_KEY`
    - 适合 OpenAI-compatible API 网关
 
 5. `LLM_PROVIDER=local`
-   - 也是走 `LLM_BASE_URL + LLM_API_KEY`
+   - 使用 `.env` 中的 `LOCAL_BASE_URL` / `LOCAL_API_KEY`
    - 适合本地部署、OpenAI-compatible 接口
 
 ### 4.2 如果要扩新 provider，改哪里
@@ -360,8 +395,8 @@ LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 
 ```bash
 LLM_PROVIDER=openai_compatible
-LLM_BASE_URL=https://your-host/v1
-LLM_API_KEY=your-key
+OPENAI_COMPATIBLE_BASE_URL=https://your-host/v1
+OPENAI_COMPATIBLE_API_KEY=your-key
 LLM_MODEL=your-model
 ```
 
@@ -413,7 +448,7 @@ MYVENDOR_API_KEY=your-key
 ```python
 elif provider == "myvendor":
     base_url = os.environ.get("MYVENDOR_BASE_URL") or "https://api.myvendor.com/v1"
-    api_key = os.environ.get("MYVENDOR_API_KEY") or os.environ.get("LLM_API_KEY") or api_key
+    api_key = os.environ.get("MYVENDOR_API_KEY")
 ```
 
 4. 如果它其实完全兼容 OpenAI，而且你也不需要特殊清洗，其实还可以不新增 provider，直接用：

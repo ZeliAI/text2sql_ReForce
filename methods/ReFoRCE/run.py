@@ -9,14 +9,30 @@ import threading, concurrent
 from sql import SqlEnv
 import time
 import json
+from datetime import datetime
+
+task_positions = {}
+total_tasks = 0
+
+
+def progress(sql_data, stage, detail=None):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    index_label = task_positions.get(sql_data, "?")
+    total_label = total_tasks if total_tasks else "?"
+    message = f"[{timestamp}] [{index_label}/{total_label}] [{sql_data}] {stage}"
+    if detail:
+        message += f" | {detail}"
+    print(message, flush=True)
 
 def build_schema_summary(question, table_info, args, search_directory, sql_data, api_name):
     if not args.do_schema_summary:
+        progress(sql_data, "skip_schema_summary", "DO_SCHEMA_SUMMARY=false")
         return None
 
     summary_txt_path = os.path.join(search_directory, "schema_summary.txt")
     summary_log_path = os.path.join(search_directory, "schema_summary.log")
     if os.path.exists(summary_txt_path) and not args.revote:
+        progress(sql_data, "reuse_schema_summary", summary_txt_path)
         with open(summary_txt_path) as f:
             return f.read()
 
@@ -24,16 +40,19 @@ def build_schema_summary(question, table_info, args, search_directory, sql_data,
     model_name = args.schema_summary_model or args.generation_model
     if model_name is None:
         logger.info("No schema summary model configured, skip.")
+        progress(sql_data, "skip_schema_summary", "no schema summary model")
         return None
 
     chat_session = ChatClass(args.azure, model_name, temperature=args.temperature)
     chat_session.set_debug_logger(logger)
     prompt = prompt_all.get_schema_summary_prompt(api_name, table_info, question)
     logger.info("[Schema Summary Prompt]\n" + prompt + "\n[Schema Summary Prompt]")
+    progress(sql_data, "schema_summary_start", f"model={model_name}")
     summary = chat_session.get_model_response_txt(prompt).strip()
     logger.info("[Schema Summary Response]\n" + summary + "\n[Schema Summary Response]")
     with open(summary_txt_path, "w") as f:
         f.write(summary)
+    progress(sql_data, "schema_summary_done", summary_txt_path)
     return summary
 
 def execute(question, table_info, schema_summary, args, csv_save_path, log_save_path, sql_save_path, search_directory, format_csv, sql_data):
@@ -94,12 +113,17 @@ def execute(question, table_info, schema_summary, args, csv_save_path, log_save_
 
     csv_save_path = os.path.join(search_directory, csv_save_path)
     sql_save_path = os.path.join(search_directory, sql_save_path)
+    branch_label = log_save_path.replace(agent.log_save_name, "").strip() or "main"
+    progress(sql_data, "generation_start", f"branch={branch_label}, model={args.generation_model}, log={log_save_path}")
 
     # answer
     if args.do_self_refinement:
+        progress(sql_data, "self_refine_start", f"branch={branch_label}, max_iter={args.max_iter}")
         agent.self_refine(args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=args.task, schema_summary=schema_summary)
     elif args.generation_model:
+        progress(sql_data, "gen_start", f"branch={branch_label}")
         agent.gen(args, logger, question, format_csv, table_struct, table_info, response_pre_txt, pre_info, csv_save_path, sql_save_path, task=args.task, schema_summary=schema_summary)
+    progress(sql_data, "generation_done", f"branch={branch_label}, sql={os.path.basename(sql_save_path)}, csv={os.path.basename(csv_save_path)}")
     if args.generation_model:
         agent.sql_env.close_db()
     
@@ -114,7 +138,7 @@ def main(args):
 def process_sql_data(sql_data):
     start_time = time.time()
 
-    print(sql_data)
+    progress(sql_data, "task_start", f"model={args.generation_model}, vote={args.do_vote}, max_iter={args.max_iter}")
 
     question = task_dict[sql_data]
     search_directory = os.path.join(args.output_path, sql_data)
@@ -162,6 +186,7 @@ def process_sql_data(sql_data):
     table_info = get_table_info(args.db_path, sql_data, agent_format.api, clear_des=True, full_tb_info=full_tb_info)
     if len(table_info) > 300000:
         print(f"Table info len: {len(table_info)}, return")
+    progress(sql_data, "table_info_ready", f"chars={len(table_info)}")
     schema_summary = build_schema_summary(question, table_info, args, search_directory, sql_data, agent_format.api)
 
     if args.do_format_restriction:
@@ -183,6 +208,7 @@ def process_sql_data(sql_data):
         num_votes = args.num_votes
         sql_paths = {}
         threads = []
+        progress(sql_data, "vote_start", f"num_votes={num_votes}, final_choose={args.final_choose}, random_tie={args.random_vote_for_tie}")
 
         for i in range(num_votes):
             csv_save_pathi = str(i) + agent_format.csv_save_name
@@ -220,7 +246,9 @@ def process_sql_data(sql_data):
         if "result.sql" not in os.listdir(search_directory):
             if any(file.endswith('.sql') for file in os.listdir(search_directory) if os.path.isfile(os.path.join(search_directory, file))):
                 # After all processes have completed, perform the vote result
+                progress(sql_data, "vote_merge_start", f"candidates={len(sql_paths)}")
                 agent_format.vote_result(search_directory, args, sql_paths, table_info, question, schema_summary=schema_summary)
+                progress(sql_data, "vote_merge_done", search_directory)
             else:
                 print(f"{sql_data}: Empty")
     else:
@@ -231,7 +259,8 @@ def process_sql_data(sql_data):
             search_directory, format_csv, sql_data
         )
 
-    print(f"Time for {sql_data}: {int((time.time() - start_time) // 60)} min")
+    elapsed_seconds = int(time.time() - start_time)
+    progress(sql_data, "task_done", f"elapsed={elapsed_seconds}s")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -319,6 +348,8 @@ if __name__ == '__main__':
         dictionaries = dictionaries[args.task_offset:]
     if args.limit_tasks:
         dictionaries = dictionaries[:args.limit_tasks]
+    total_tasks = len(dictionaries)
+    task_positions = {sql_data: idx + 1 for idx, sql_data in enumerate(dictionaries)}
     print(f"Total tasks to run: {len(dictionaries)}")
 
     if args.generation_model is not None:

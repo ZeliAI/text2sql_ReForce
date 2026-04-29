@@ -163,9 +163,11 @@ def evaluate_passk(pth, task, update_res=False):
     for func in eval_func:
         print("Evaluate function:", func)
         for ex in tqdm(os.listdir(pth)):
-            if ex.endswith("original"):
+            if ex.startswith(".") or ex.endswith("original"):
                 continue
             ex_pth = os.path.join(pth, ex)
+            if not os.path.isdir(ex_pth):
+                continue
             ex_score = []
             for file in os.listdir(ex_pth):
                 file_pth = os.path.join(ex_pth, file)
