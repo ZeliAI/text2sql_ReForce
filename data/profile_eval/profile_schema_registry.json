@@ -1,0 +1,5782 @@
+{
+  "domain": "画像域",
+  "version": "p0_rule_based_from_markdown",
+  "source_dir": "/Users/jiefeng/Documents/codex_test/truly_text2sql/text2sql_ReForce/data/业务评测集_markdown",
+  "global_rules": {
+    "join_rule": "4 张画像域表通过 user_id + dt JOIN，优先单表查询，只有跨表字段组合时才 JOIN。",
+    "dt_rule": "所有查询必须指定 dt 分区；P0 默认使用 dt = max_pt('完整表名')，除非输入明确要求固定日期。",
+    "default_metric": "用户数默认使用 COUNT(DISTINCT user_id)"
+  },
+  "table_list": [],
+  "tables": [
+    {
+      "table_name": "adm_asap_base_user_label_dd",
+      "database": "antsg_asap",
+      "full_name": "antsg_asap.adm_asap_base_user_label_dd",
+      "description": "用户基础画像表，包含用户的基础属性信息，如用户状态、年龄、性别、港漂标识、注册信息、认证信息、设备信息、LBS位置信息、生命周期、价值分层、风控评分等。是用户画像体系中最基础的维度表",
+      "partition_field": "dt",
+      "join_keys": [
+        "user_id",
+        "dt"
+      ],
+      "columns": [
+        {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "STRING",
+          "description": "用户唯一标识",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_status",
+          "cn_name": "用户状态",
+          "type": "STRING",
+          "description": "用户状态（'T'：正常，'Q'：快速注册，'C'：注销，'B'：冻结）",
+          "value_hints": [
+            "T",
+            "Q",
+            "C",
+            "B",
+            "'T'：正常，'Q'：快速注册，'C'：注销，'B'：冻结"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_age",
+          "cn_name": "用户年龄",
+          "type": "BIGINT",
+          "description": "用户年龄（数值类型，没有年龄：-1，正常年龄取值范围 >0 ）",
+          "value_hints": [
+            "数值类型，没有年龄：-1，正常年龄取值范围 >0"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_gender",
+          "cn_name": "用户性别",
+          "type": "STRING",
+          "description": "用户性别('F':女 、'M'：男）",
+          "value_hints": [
+            "F",
+            "M"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_hk_drifter",
+          "cn_name": "是否港漂",
+          "type": "STRING",
+          "description": "是否港漂（'CX'：非永久居民，'AX'：永久居民）",
+          "value_hints": [
+            "CX",
+            "AX",
+            "'CX'：非永久居民，'AX'：永久居民"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_ph_maid_flag",
+          "cn_name": "是否菲佣用户",
+          "type": "STRING",
+          "description": "是否菲佣用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_birth_month",
+          "cn_name": "用户生日对应月份",
+          "type": "STRING",
+          "description": "用户生日对应月份(01-12),未认证是空(null)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_birth_day",
+          "cn_name": "用户生日对应日期",
+          "type": "STRING",
+          "description": "用户生日对应日期(01-31),未认证是空(null)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_to_birth_x_day",
+          "cn_name": "距离用户本年生日还有X天",
+          "type": "STRING",
+          "description": "距离用户本年生日还有X天,未认证是空(null),本年生日已过为(-1)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_birth_date_gmt",
+          "cn_name": "认证过的出生年月日",
+          "type": "STRING",
+          "description": "认证过的出生年月日,未认证是空(null)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "register_date",
+          "cn_name": "注册日期",
+          "type": "STRING",
+          "description": "注册日期cn(到天)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "register_gmt",
+          "cn_name": "注册时间",
+          "type": "STRING",
+          "description": "注册时间cn(到秒()",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "register_days",
+          "cn_name": "注册距今天数",
+          "type": "BIGINT",
+          "description": "注册距今天数 默认-1",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "register_number",
+          "cn_name": "注冊號碼",
+          "type": "STRING",
+          "description": "注冊號碼（'86'、'852'、'853'、'其他'）",
+          "value_hints": [
+            "86",
+            "852",
+            "853",
+            "其他",
+            "'86'、'852'、'853'、'其他'"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "new_user_level",
+          "cn_name": "新用户认证等级",
+          "type": "STRING",
+          "description": "新用户认证等级('verified','unverified','pre-existing')",
+          "value_hints": [
+            "verified",
+            "unverified",
+            "pre-existing",
+            "'verified','unverified','pre-existing'"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_pay_qr",
+          "cn_name": "是否收钱码用户",
+          "type": "STRING",
+          "description": "是否收钱码用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_taxi_merchant",
+          "cn_name": "是否出租车收钱码用户",
+          "type": "STRING",
+          "description": "是否出租车收钱码用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "cert_cn_nation",
+          "cn_name": "认证通过的国籍",
+          "type": "STRING",
+          "description": "认证通过的国籍(中文)('未认证'、'越南'、'日本'、'菲律宾'、'泰国'、'韩国'、'香港'、'印度尼西亚'、'中国内地'、'其他国家/地区')",
+          "value_hints": [
+            "未认证",
+            "越南",
+            "日本",
+            "菲律宾",
+            "泰国",
+            "韩国",
+            "香港",
+            "印度尼西亚",
+            "中国内地",
+            "其他国家/地区",
+            "'未认证'、'越南'、'日本'、'菲律宾'、'泰国'、'韩国'、'香港'、'印度尼西亚'、'中国内地'、'其他国家/地区'"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_age_group",
+          "cn_name": "用户年龄分级",
+          "type": "STRING",
+          "description": "用户年龄分级（'0':未知、'1':18岁以下、'2':18岁到21岁、'3':22岁到25岁、'4':26岁到30岁、'5':31岁到35岁、'6':36岁到40岁、'7':41岁到50岁、'8':51岁到60岁、'9':60岁以上）",
+          "value_hints": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "'0':未知、'1':18岁以下、'2':18岁到21岁、'3':22岁到25岁、'4':26岁到30岁、'5':31岁到35岁、'6':36岁到40岁、'7':41岁到50岁、'8':51岁到60岁、'9':60岁以上"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "new_old_user_level",
+          "cn_name": "新老用户分级",
+          "type": "STRING",
+          "description": "新老用户分级（'1':未活跃、'2':7日内首活、'3':30日内首活、4:365日内首活、5:365日前首活）",
+          "value_hints": [
+            "1",
+            "2",
+            "3",
+            "'1':未活跃、'2':7日内首活、'3':30日内首活、4:365日内首活、5:365日前首活"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_type",
+          "cn_name": "用户类型",
+          "type": "STRING",
+          "description": "用户类型 ('1'：公司，'2'：个人)",
+          "value_hints": [
+            "1",
+            "2",
+            "'1'：公司，'2'：个人"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_have_name_flag",
+          "cn_name": "是否有名字",
+          "type": "STRING",
+          "description": "是否有名字('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_actived_flag",
+          "cn_name": "是否激活",
+          "type": "STRING",
+          "description": "是否激活('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "actived_days",
+          "cn_name": "用户激活到当前天数",
+          "type": "BIGINT",
+          "description": "用户激活到当前天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "nationality",
+          "cn_name": "用户国籍",
+          "type": "STRING",
+          "description": "用户国籍",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "careers",
+          "cn_name": "用户职业",
+          "type": "STRING",
+          "description": "用户职业",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "credential_type",
+          "cn_name": "用户认证证件类型",
+          "type": "STRING",
+          "description": "用户认证证件类型",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pf_language",
+          "cn_name": "语言设置",
+          "type": "STRING",
+          "description": "语言设置('en_US'、'zh_HK'、'zh_Hans'、'other_language')",
+          "value_hints": [
+            "en_US",
+            "zh_HK",
+            "zh_Hans",
+            "other_language",
+            "'en_US'、'zh_HK'、'zh_Hans'、'other_language'"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_promo_black_flag",
+          "cn_name": "是否营销黑名单用户",
+          "type": "STRING",
+          "description": "是否营销黑名单用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "balance",
+          "cn_name": "当日钱包余额",
+          "type": "BIGINT",
+          "description": "当日钱包余额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "register_from",
+          "cn_name": "用户注册来源",
+          "type": "STRING",
+          "description": "用户注册来源",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_bind_mobile_flag",
+          "cn_name": "是否绑定手机",
+          "type": "STRING",
+          "description": "是否绑定手机 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_app_739_versio",
+          "cn_name": "app版本号是否小于7.3.9",
+          "type": "STRING",
+          "description": "app版本号是否小于7.3.9('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "u_device_model",
+          "cn_name": "机型",
+          "type": "STRING",
+          "description": "机型_流量日志",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "u_device_resolution",
+          "cn_name": "分辨率",
+          "type": "STRING",
+          "description": "分辨率，如: 412*883_流量日志",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "u_os",
+          "cn_name": "操作系统",
+          "type": "STRING",
+          "description": "操作系统: ANDROID/IOS_流量日志（ 'ANDROID'、'IOS'）",
+          "value_hints": [
+            "ANDROID",
+            "IOS",
+            "'ANDROID'、'IOS'"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "u_resident_province",
+          "cn_name": "常驻省份",
+          "type": "STRING",
+          "description": "常驻省份_流量日志",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "u_resident_city",
+          "cn_name": "常驻城市",
+          "type": "STRING",
+          "description": "常驻城市_流量日志",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_push_power",
+          "cn_name": "用户push权限是否开启",
+          "type": "STRING",
+          "description": "用户push权限是否开启('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_push_gw",
+          "cn_name": "是否接收push",
+          "type": "STRING",
+          "description": "是否接收push('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_lang_en",
+          "cn_name": "最近一次登录设置的语言是英文",
+          "type": "STRING",
+          "description": "最近一次登录设置的语言是英文('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_lang_zh",
+          "cn_name": "最近一次登录设置的语言是中文",
+          "type": "STRING",
+          "description": "最近一次登录设置的语言是中文('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_login_ios",
+          "cn_name": "最近一次登录使用IOS",
+          "type": "STRING",
+          "description": "最近一次登录使用IOS('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_login_android",
+          "cn_name": "最近一次登录使用安卓",
+          "type": "STRING",
+          "description": "最近一次登录使用安卓('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "kyc_level",
+          "cn_name": "kyc认证等级",
+          "type": "STRING",
+          "description": "kyc认证等级('CDD1'、'CDD2'、'EKYC'、'UNKNOWN_KYC_LEVEL'、'CDD0')",
+          "value_hints": [
+            "CDD1",
+            "CDD2",
+            "EKYC",
+            "UNKNOWN_KYC_LEVEL",
+            "CDD0",
+            "'CDD1'、'CDD2'、'EKYC'、'UNKNOWN_KYC_LEVEL'、'CDD0'"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_kyc_flag",
+          "cn_name": "用户是否KYCS",
+          "type": "STRING",
+          "description": "用户是否KYCS('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_ekyc",
+          "cn_name": "是否ekycS",
+          "type": "STRING",
+          "description": "是否ekycS('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "life_cycle",
+          "cn_name": "用户生命周期",
+          "type": "STRING",
+          "description": "用户生命周期 ('1':新手期用户、'2':成长期用户、'3':成熟期用户、'4':衰退期用户、'5':沉默期用户、'6':流失期用户、'61':流失期用户_非AAU)",
+          "value_hints": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "61",
+            "'1':新手期用户、'2':成长期用户、'3':成熟期用户、'4':衰退期用户、'5':沉默期用户、'6':流失期用户、'61':流失期用户_非AAU"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_value",
+          "cn_name": "用户价值",
+          "type": "STRING",
+          "description": "用户价值('1'：高价值用户_AAU、'2'：一般价值用户_AAU、'3'：重点发展用户_AAU、'4'：一般发展用户_AAU、'5'：重点保持用户_AAU、'51'：重点保持用户_非AAU、'6'：一般保持用户_AAU、'61'：一般保持用户_非AAU、'7'：重点挽留用户_AAU、'71'：重点挽留用户_非AAU、'8'：低价值用户_AAU、'81'：低价值用户_非AAU)",
+          "value_hints": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "51",
+            "6",
+            "61",
+            "7",
+            "71",
+            "8",
+            "81",
+            "'1'：高价值用户_AAU、'2'：一般价值用户_AAU、'3'：重点发展用户_AAU、'4'：一般发展用户_AAU、'5'：重点保持用户_AAU、'51'：重点保持用户_非AAU、'6'：一般保持用户_AAU、'61'：一般保持用户_非AAU、'7'：重点挽留用户_AAU、'71'：重点挽留用户_非AAU、'8'：低价值用户_AAU、'81'：低价值用户_非AAU"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "user_history_value",
+          "cn_name": "用户历史价值",
+          "type": "STRING",
+          "description": "用户历史价值(高、中、低)",
+          "value_hints": [
+            "高、中、低"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "active_region_r7d",
+          "cn_name": "最近7天活跃区域",
+          "type": "STRING",
+          "description": "最近7天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null",
+          "value_hints": [
+            "內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "active_region_r15d",
+          "cn_name": "最近15天活跃区域",
+          "type": "STRING",
+          "description": "最近15天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null",
+          "value_hints": [
+            "內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "active_region_r30d",
+          "cn_name": "最近30天活跃区域",
+          "type": "STRING",
+          "description": "最近30天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null",
+          "value_hints": [
+            "內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "active_region_r365d",
+          "cn_name": "最近365天活跃区域",
+          "type": "STRING",
+          "description": "最近365天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null",
+          "value_hints": [
+            "內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "active_region_his",
+          "cn_name": "历史至今的活跃区域",
+          "type": "STRING",
+          "description": "历史至今的活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null",
+          "value_hints": [
+            "內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_lbs_hk",
+          "cn_name": "是否曾经lbs香港",
+          "type": "STRING",
+          "description": "是否曾经lbs香港('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_lbs_cn",
+          "cn_name": "是否曾经lbs内地",
+          "type": "STRING",
+          "description": "是否曾经lbs内地('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_lbs_ma",
+          "cn_name": "是否曾经lbs澳门",
+          "type": "STRING",
+          "description": "是否曾经lbs澳门('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_lbs_jp",
+          "cn_name": "是否曾经lbs日本",
+          "type": "STRING",
+          "description": "是否曾经lbs日本('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "city_num_r1y",
+          "cn_name": "近1年出行城市数",
+          "type": "BIGINT",
+          "description": "近1年出行城市数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "city_num_r2y",
+          "cn_name": "近2年出行城市数",
+          "type": "BIGINT",
+          "description": "近2年出行城市数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "city_num_r3y",
+          "cn_name": "近3年出行城市数",
+          "type": "BIGINT",
+          "description": "近3年出行城市数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "country_num_r1y",
+          "cn_name": "近1年出行国家数",
+          "type": "BIGINT",
+          "description": "近1年出行国家数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "country_num_r2y",
+          "cn_name": "近2年出行国家数",
+          "type": "BIGINT",
+          "description": "近2年出行国家数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "country_num_r3y",
+          "cn_name": "近3年出行国家数",
+          "type": "BIGINT",
+          "description": "近3年出行国家数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "travel_days",
+          "cn_name": "近半年在境外的天数",
+          "type": "BIGINT",
+          "description": "近半年在境外的天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "travel_days_r1y",
+          "cn_name": "近1年在境外的天数",
+          "type": "BIGINT",
+          "description": "近1年在境外的天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "travel_days_r2y",
+          "cn_name": "近2年在境外的天数",
+          "type": "BIGINT",
+          "description": "近2年在境外的天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "travel_days_r3y",
+          "cn_name": "近3年在境外的天数",
+          "type": "BIGINT",
+          "description": "近3年在境外的天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "isoversea_2year",
+          "cn_name": "近2年是否有境外lbs",
+          "type": "STRING",
+          "description": "近2年是否有境外lbs('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "is_black_list",
+          "cn_name": "是否风控的营销黑名单",
+          "type": "STRING",
+          "description": "是否风控的营销黑名单T+2更新('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pl_apply_predict_score",
+          "cn_name": "钱包银行联合信贷模型 标准用户得分",
+          "type": "BIGINT",
+          "description": "钱包银行联合信贷模型 标准用户得分 默认9999",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pl_apply_predict_score_ph_maid",
+          "cn_name": "钱包银行联合信贷模型 菲佣用户得分",
+          "type": "BIGINT",
+          "description": "钱包银行联合信贷模型 菲佣用户得分 默认9999",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pl_apply_user_rank",
+          "cn_name": "钱包银行联合信贷模型 标准用户和菲佣用户合并 并转化为银行的10分制",
+          "type": "BIGINT",
+          "description": "钱包银行联合信贷模型 标准用户和菲佣用户合并 并转化为银行的10分制 无得分为9999",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pl_apply_user_rank_v3",
+          "cn_name": "钱包银行联合信贷模型 v3版本用户得分",
+          "type": "BIGINT",
+          "description": "钱包银行联合信贷模型 v3版本用户得分 范围0-9 默认9999",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ploan_riskseg",
+          "cn_name": "PloanA卡评级",
+          "type": "BIGINT",
+          "description": "PloanA卡评级 范围0-9 默认999",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "mcard_riskseg",
+          "cn_name": "M卡评级",
+          "type": "BIGINT",
+          "description": "M卡评级 范围0-9 默认999",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "分区日期",
+          "type": "STRING",
+          "description": "分区日期，格式yyyyMMdd",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_02_adm_asap_base_user_label_dd.md",
+            "line_start": 18
+          }
+        }
+      ],
+      "examples": [
+        "-- 查询各年龄段用户分布\nSELECT \n    user_age_group,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM antsg_asap.adm_asap_base_user_label_dd\nWHERE dt = '${bizdate}'\n  AND user_status = 'T'\nGROUP BY user_age_group\nORDER BY user_cnt DESC;",
+        "-- 查询港漂用户的性别和年龄分布\nSELECT \n    user_gender,\n    user_age_group,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM antsg_asap.adm_asap_base_user_label_dd\nWHERE dt = '${bizdate}'\n  AND is_hk_drifter = 'CX'\n  AND user_status = 'T'\nGROUP BY user_gender, user_age_group\nORDER BY user_cnt DESC;",
+        "-- 查询高价值用户的生命周期分布\nSELECT \n    life_cycle,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM antsg_asap.adm_asap_base_user_label_dd\nWHERE dt = '${bizdate}'\n  AND user_value LIKE '1%'\n  AND is_promo_black_flag = '0'\n  AND is_black_list = '0'\nGROUP BY life_cycle\nORDER BY user_cnt DESC;",
+        "-- 查询各KYC等级的用户分布\nSELECT \n    kyc_level,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM antsg_asap.adm_asap_base_user_label_dd\nWHERE dt = '${bizdate}'\n  AND user_status = 'T'\nGROUP BY kyc_level\nORDER BY user_cnt DESC;",
+        "-- 查询近30天活跃区域分布\nSELECT \n    active_region_r30d,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM antsg_asap.adm_asap_base_user_label_dd\nWHERE dt = '${bizdate}'\n  AND active_region_r30d IS NOT NULL\nGROUP BY active_region_r30d\nORDER BY user_cnt DESC;",
+        "AND is_promo_black_flag = '0' \nAND is_black_list = '0'"
+      ],
+      "source": {
+        "file": "画像域_02_adm_asap_base_user_label_dd.md"
+      }
+    },
+    {
+      "table_name": "adm_asap_algo_user_label_dd",
+      "database": "anthk_sg",
+      "full_name": "anthk_sg.adm_asap_algo_user_label_dd",
+      "description": "用户行为偏好表，包含用户的各类偏好等级、潜客分层、回流潜力、沉默预警等算法标签。该表通过机器学习模型对用户行为进行分析和预测，为精准营销、用户运营提供数据支持。主要包含权益偏好、展位偏好、业务偏好、品类偏好、eM+潜客、基金潜客、回流沉默预警等多个维度的标签。",
+      "partition_field": "dt",
+      "join_keys": [
+        "user_id",
+        "dt"
+      ],
+      "columns": [
+        {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "STRING",
+          "description": "用户唯一标识",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pts_prefer_level",
+          "cn_name": "积分权益偏好等级",
+          "type": "STRING",
+          "description": "积分权益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ec_prefer_level",
+          "cn_name": "兑换类凭证权益偏好等级",
+          "type": "STRING",
+          "description": "兑换类凭证权益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "mev_prefer_level",
+          "cn_name": "商户兑换券权益偏好等级",
+          "type": "STRING",
+          "description": "商户兑换券权益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "rp_prefer_level",
+          "cn_name": "红包权益偏好等级",
+          "type": "STRING",
+          "description": "红包权益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "if_prefer_level",
+          "cn_name": "鼓励金权益偏好等级",
+          "type": "STRING",
+          "description": "鼓励金权益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "faid_prefer_level",
+          "cn_name": "满立减权益偏好等级",
+          "type": "STRING",
+          "description": "满立减权益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "banner_prefer_level",
+          "cn_name": "首页腰封Banner偏好等级/腰封点击偏好",
+          "type": "STRING",
+          "description": "首页腰封Banner偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pay_success_prefer_level",
+          "cn_name": "支付成功页偏好等级",
+          "type": "STRING",
+          "description": "支付成功页偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "feeds_prefer_level",
+          "cn_name": "首页feeds偏好等级",
+          "type": "STRING",
+          "description": "首页feeds偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "voucher_prefer_level",
+          "cn_name": "首页優惠卡片偏好等级",
+          "type": "STRING",
+          "description": "首页優惠卡片偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "finance_prefer_level",
+          "cn_name": "首頁金融卡片偏好等级",
+          "type": "STRING",
+          "description": "首頁金融卡片偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "target_prefer_level",
+          "cn_name": "首頁定投卡片偏好等级",
+          "type": "STRING",
+          "description": "首頁定投卡片偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ol_prefer_level",
+          "cn_name": "線上偏好等级",
+          "type": "STRING",
+          "description": "線上偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ll_prefer_level",
+          "cn_name": "本地線下偏好等级",
+          "type": "STRING",
+          "description": "本地線下偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "cl_prefer_level",
+          "cn_name": "跨境線下偏好等级",
+          "type": "STRING",
+          "description": "跨境線下偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "pt_prefer_level",
+          "cn_name": "繳費偏好等级",
+          "type": "STRING",
+          "description": "繳費偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "tf_prefer_level",
+          "cn_name": "轉賬偏好等级",
+          "type": "STRING",
+          "description": "轉賬偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "tra_prefer_level",
+          "cn_name": "交通偏好等级",
+          "type": "STRING",
+          "description": "交通偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "rm_prefer_level",
+          "cn_name": "汇款偏好等级",
+          "type": "STRING",
+          "description": "汇款偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "sv_prefer_level",
+          "cn_name": "賣券偏好等级",
+          "type": "STRING",
+          "description": "賣券偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "fin01_prefer_level",
+          "cn_name": "金融_EM+偏好等级",
+          "type": "STRING",
+          "description": "金融_EM+偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "fin02_prefer_level",
+          "cn_name": "金融_非EM+偏好等级",
+          "type": "STRING",
+          "description": "金融_非EM+偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "cou_prefer_level",
+          "cn_name": "優惠領券偏好等级",
+          "type": "STRING",
+          "description": "優惠領券偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ui_prefer_level",
+          "cn_name": "使用積分偏好等级",
+          "type": "STRING",
+          "description": "使用積分偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "healthcare_prefer_level",
+          "cn_name": "醫療健康偏好等级",
+          "type": "STRING",
+          "description": "醫療健康偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "fb_prefer_level",
+          "cn_name": "餐飲偏好等级",
+          "type": "STRING",
+          "description": "餐飲偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "retail_prefer_level",
+          "cn_name": "零售偏好等级",
+          "type": "STRING",
+          "description": "零售偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "travel_prefer_level",
+          "cn_name": "旅遊出行偏好等级",
+          "type": "STRING",
+          "description": "旅遊出行偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "comprehfinance_prefer_level",
+          "cn_name": "綜合金融偏好等级",
+          "type": "STRING",
+          "description": "綜合金融偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "other_prefer_level",
+          "cn_name": "其他偏好等级",
+          "type": "STRING",
+          "description": "其他偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "game_prefer_level",
+          "cn_name": "遊戲偏好等级",
+          "type": "STRING",
+          "description": "遊戲偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "recreation_prefer_level",
+          "cn_name": "休閒娛樂偏好等级",
+          "type": "STRING",
+          "description": "休閒娛樂偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "bathinghealth_prefer_level",
+          "cn_name": "洗浴養身偏好等级",
+          "type": "STRING",
+          "description": "洗浴養身偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "housekeeping_prefer_level",
+          "cn_name": "家政/維修/回收偏好等级",
+          "type": "STRING",
+          "description": "家政/維修/回收偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "filmshowsport_prefer_level",
+          "cn_name": "電影/演出/體育賽事偏好等级",
+          "type": "STRING",
+          "description": "電影/演出/體育賽事偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "beauty_prefer_level",
+          "cn_name": "麗人偏好等级",
+          "type": "STRING",
+          "description": "麗人偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "audiovisualmember_prefer_level",
+          "cn_name": "影音會員偏好等级",
+          "type": "STRING",
+          "description": "影音會員偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "telfee_prefer_level",
+          "cn_name": "電訊繳費偏好等级",
+          "type": "STRING",
+          "description": "電訊繳費偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "callcar_prefer_level",
+          "cn_name": "打車偏好等级",
+          "type": "STRING",
+          "description": "打車偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "travelservice_prefer_level",
+          "cn_name": "旅行服務偏好等级",
+          "type": "STRING",
+          "description": "旅行服務偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "tram_prefer_level",
+          "cn_name": "電車偏好等级",
+          "type": "STRING",
+          "description": "電車偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "wealthmanage_prefer_level",
+          "cn_name": "財富管理偏好等级",
+          "type": "STRING",
+          "description": "財富管理偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "otherfee_prefer_level",
+          "cn_name": "其他繳費偏好等级",
+          "type": "STRING",
+          "description": "其他繳費偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "bus_prefer_level",
+          "cn_name": "巴士偏好等级",
+          "type": "STRING",
+          "description": "巴士偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "bank_prefer_level",
+          "cn_name": "銀行偏好等级",
+          "type": "STRING",
+          "description": "銀行偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "service_prefer_level",
+          "cn_name": "服務偏好等级",
+          "type": "STRING",
+          "description": "服務偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ferry_prefer_level",
+          "cn_name": "輪渡偏好等级",
+          "type": "STRING",
+          "description": "輪渡偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "prenatalcare_prefer_level",
+          "cn_name": "產前產後護理偏好等级",
+          "type": "STRING",
+          "description": "產前產後護理偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "govbill_prefer_level",
+          "cn_name": "政府帳單偏好等级",
+          "type": "STRING",
+          "description": "政府帳單偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "livingfee_prefer_level",
+          "cn_name": "生活繳費偏好等级",
+          "type": "STRING",
+          "description": "生活繳費偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "highspeedrail_prefer_level",
+          "cn_name": "高鐵偏好等级",
+          "type": "STRING",
+          "description": "高鐵偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "sharedservice_prefer_level",
+          "cn_name": "共享服務偏好等级",
+          "type": "STRING",
+          "description": "共享服務偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "minibus_prefer_level",
+          "cn_name": "小巴偏好等级",
+          "type": "STRING",
+          "description": "小巴偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "metro_prefer_level",
+          "cn_name": "地鐵偏好等级",
+          "type": "STRING",
+          "description": "地鐵偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "cloth_prefer_level",
+          "cn_name": "服裝偏好等级",
+          "type": "STRING",
+          "description": "服裝偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "exercise_prefer_level",
+          "cn_name": "運動健身偏好等级",
+          "type": "STRING",
+          "description": "運動健身偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "airport_prefer_level",
+          "cn_name": "機場偏好等级",
+          "type": "STRING",
+          "description": "機場偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "platformincentives_prefer_level",
+          "cn_name": "平臺激勵偏好等级",
+          "type": "STRING",
+          "description": "平臺激勵偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "userrights_prefer_level",
+          "cn_name": "用戶權益偏好等级",
+          "type": "STRING",
+          "description": "用戶權益偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "accounttransaction_prefer_level",
+          "cn_name": "賬戶與交易管理偏好等级",
+          "type": "STRING",
+          "description": "賬戶與交易管理偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "ai_brand_prefer_top_items",
+          "cn_name": "用户品牌top偏好",
+          "type": "STRING",
+          "description": "用户品牌top偏好",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "reactivation_level",
+          "cn_name": "用户回流潜力等级",
+          "type": "STRING",
+          "description": "用户回流潜力等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "silence_risk_level",
+          "cn_name": "用户沉默预警等级",
+          "type": "STRING",
+          "description": "用户沉默预警等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "freq_uplift_level",
+          "cn_name": "用户提频潜力等级",
+          "type": "STRING",
+          "description": "用户提频潜力等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "prefer_level",
+          "cn_name": "push偏好等级/点击push偏好等级",
+          "type": "STRING",
+          "description": "push偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r23h_prefer_level",
+          "cn_name": "R23h偏好等级",
+          "type": "STRING",
+          "description": "R23h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r22h_prefer_level",
+          "cn_name": "R22h偏好等级",
+          "type": "STRING",
+          "description": "R22h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r21h_prefer_level",
+          "cn_name": "R21h偏好等级",
+          "type": "STRING",
+          "description": "R21h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r20h_prefer_level",
+          "cn_name": "R20h偏好等级",
+          "type": "STRING",
+          "description": "R20h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r19h_prefer_level",
+          "cn_name": "R19h偏好等级",
+          "type": "STRING",
+          "description": "R19h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r18h_prefer_level",
+          "cn_name": "R18h偏好等级",
+          "type": "STRING",
+          "description": "R18h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r17h_prefer_level",
+          "cn_name": "R17h偏好等级",
+          "type": "STRING",
+          "description": "R17h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r16h_prefer_level",
+          "cn_name": "R16h偏好等级",
+          "type": "STRING",
+          "description": "R16h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r15h_prefer_level",
+          "cn_name": "R15h偏好等级",
+          "type": "STRING",
+          "description": "R15h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r14h_prefer_level",
+          "cn_name": "R14h偏好等级",
+          "type": "STRING",
+          "description": "R14h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r13h_prefer_level",
+          "cn_name": "R13h偏好等级",
+          "type": "STRING",
+          "description": "R13h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r12h_prefer_level",
+          "cn_name": "R12h偏好等级",
+          "type": "STRING",
+          "description": "R12h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r11h_prefer_level",
+          "cn_name": "R11h偏好等级",
+          "type": "STRING",
+          "description": "R11h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r10h_prefer_level",
+          "cn_name": "R10h偏好等级",
+          "type": "STRING",
+          "description": "R10h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r09h_prefer_level",
+          "cn_name": "R09h偏好等级",
+          "type": "STRING",
+          "description": "R09h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r08h_prefer_level",
+          "cn_name": "R08h偏好等级",
+          "type": "STRING",
+          "description": "R08h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r07h_prefer_level",
+          "cn_name": "R07h偏好等级",
+          "type": "STRING",
+          "description": "R07h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r06h_prefer_level",
+          "cn_name": "R06h偏好等级",
+          "type": "STRING",
+          "description": "R06h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r05h_prefer_level",
+          "cn_name": "R05h偏好等级",
+          "type": "STRING",
+          "description": "R05h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r04h_prefer_level",
+          "cn_name": "R04h偏好等级",
+          "type": "STRING",
+          "description": "R04h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r03h_prefer_level",
+          "cn_name": "R03h偏好等级",
+          "type": "STRING",
+          "description": "R03h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r02h_prefer_level",
+          "cn_name": "R02h偏好等级",
+          "type": "STRING",
+          "description": "R02h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r01h_prefer_level",
+          "cn_name": "R01h偏好等级",
+          "type": "STRING",
+          "description": "R01h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "r00h_prefer_level",
+          "cn_name": "R00h偏好等级",
+          "type": "STRING",
+          "description": "R00h偏好等级('high':高、'medium':中、'low':低)",
+          "value_hints": [
+            "high",
+            "medium",
+            "low",
+            "'high':高、'medium':中、'low':低"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_potential_segment",
+          "cn_name": "eM+开通预测",
+          "type": "STRING",
+          "description": "eM+开通预测(高潜、中潜、低潜)",
+          "value_hints": [
+            "高潜、中潜、低潜"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_transfer_in_label",
+          "cn_name": "eM+入金/存钱预测",
+          "type": "STRING",
+          "description": "eM+入金预测(高入金、中入金、低入金)",
+          "value_hints": [
+            "高入金、中入金、低入金"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_value_user",
+          "cn_name": "eM+用户价值",
+          "type": "STRING",
+          "description": "eM+用户价值('1':高价值、'2':中价值、'3':低价值)",
+          "value_hints": [
+            "1",
+            "2",
+            "3",
+            "'1':高价值、'2':中价值、'3':低价值"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_marketing_sensitivity",
+          "cn_name": "eM+营销敏感度",
+          "type": "STRING",
+          "description": "eM+营销敏感度（高营销敏感度,低营销敏感度）",
+          "value_hints": [
+            "高营销敏感度,低营销敏感度"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_potential_rank",
+          "cn_name": "eM+潜客rank",
+          "type": "BIGINT",
+          "description": "eM+潜客rank，数值越小，排名越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_transfer_rank",
+          "cn_name": "eM+入金rank",
+          "type": "BIGINT",
+          "description": "eM+入金rank，数值越小，排名越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_mkt_perfer_rank",
+          "cn_name": "eM+营销敏感度rank",
+          "type": "BIGINT",
+          "description": "eM+营销敏感度rank，数值越小，排名越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "fund_potential_rank",
+          "cn_name": "基金潜客rank",
+          "type": "BIGINT",
+          "description": "基金潜客rank，数值越小，排名越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "fund_potential_segment",
+          "cn_name": "基金开通预测",
+          "type": "STRING",
+          "description": "基金开通预测（高潜、中潜、低潜）",
+          "value_hints": [
+            "高潜、中潜、低潜"
+          ],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_potential_banner_score",
+          "cn_name": "eM+潜客分(首页Banner偏好)",
+          "type": "BIGINT",
+          "description": "eM+潜客分(首页Banner偏好),数值越大, eM+开通概率越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "em_potential_banner_rank",
+          "cn_name": "eM+潜客rank(首页Banner偏好)",
+          "type": "BIGINT",
+          "description": "eM+潜客rank(首页Banner偏好),数值越小,排名越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "fund_subs_rank",
+          "cn_name": "subscription rank",
+          "type": "BIGINT",
+          "description": "subscription rank，数值越小，认购率越高",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "分区日期",
+          "type": "STRING",
+          "description": "分区日期，格式yyyyMMdd",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_03_adm_asap_algo_user_label_dd.md",
+            "line_start": 18
+          }
+        }
+      ],
+      "examples": [
+        "-- 查询各权益偏好的高偏好用户数\nSELECT \n    pts_prefer_level,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM anthk_sg.adm_asap_algo_user_label_dd\nWHERE dt = '${bizdate}'\n  AND pts_prefer_level = 'high'\nGROUP BY pts_prefer_level;",
+        "-- 查询eM+各潜力等级用户数\nSELECT \n    em_potential_segment,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM anthk_sg.adm_asap_algo_user_label_dd\nWHERE dt = '${bizdate}'\nGROUP BY em_potential_segment\nORDER BY user_cnt DESC;",
+        "-- 查询基金高潜用户\nSELECT \n    fund_potential_segment,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM anthk_sg.adm_asap_algo_user_label_dd\nWHERE dt = '${bizdate}'\nGROUP BY fund_potential_segment\nORDER BY user_cnt DESC;",
+        "-- 查询各回流潜力等级用户数\nSELECT \n    reactivation_level,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM anthk_sg.adm_asap_algo_user_label_dd\nWHERE dt = '${bizdate}'\nGROUP BY reactivation_level\nORDER BY user_cnt DESC;",
+        "-- 查询沉默风险等级分布\nSELECT \n    silence_risk_level,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM anthk_sg.adm_asap_algo_user_label_dd\nWHERE dt = '${bizdate}'\nGROUP BY silence_risk_level\nORDER BY user_cnt DESC;",
+        "-- 查询eM+潜客排名最高的1000名用户\nSELECT \n    user_id,\n    em_potential_rank,\n    em_potential_segment\nFROM anthk_sg.adm_asap_algo_user_label_dd\nWHERE dt = '${bizdate}'\n  AND em_potential_segment = '高潜'\nORDER BY em_potential_rank ASC\nLIMIT 1000;"
+      ],
+      "source": {
+        "file": "画像域_03_adm_asap_algo_user_label_dd.md"
+      }
+    },
+    {
+      "table_name": "adm_asap_pay_user_label_dd",
+      "database": "antsg_asap",
+      "full_name": "antsg_asap.adm_asap_pay_user_label_dd",
+      "description": "用户交易行为画像表，包含用户绑卡、支付、充值、转账、理财等交易行为标签。该表记录用户的交易习惯、支付方式偏好、出行服务使用、金融理财行为等多维度交易特征，为用户运营、精准营销、风险控制提供数据支持。",
+      "partition_field": "dt",
+      "join_keys": [
+        "user_id",
+        "dt"
+      ],
+      "columns": [
+        {
+          "name": "is_bank_no",
+          "cn_name": "是否绑定非直连银行",
+          "type": "STRING",
+          "description": "是否绑定非直连银行 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_card_info",
+          "cn_name": "是否绑卡",
+          "type": "STRING",
+          "description": "是否绑卡 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "effective_bind_card_cnt",
+          "cn_name": "当前有效绑卡数",
+          "type": "BIGINT",
+          "description": "当前有效绑卡数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "bind_card_cnt",
+          "cn_name": "历史绑卡数",
+          "type": "BIGINT",
+          "description": "历史绑卡数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_bind_boci",
+          "cn_name": "当前是否绑定中银信用卡",
+          "type": "STRING",
+          "description": "当前是否绑定中银信用卡('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_bind_credit",
+          "cn_name": "当前是否绑定VM或中银信用卡",
+          "type": "STRING",
+          "description": "当前是否绑定VM或中银信用卡('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_bank_bind",
+          "cn_name": "当前是否绑定银行卡",
+          "type": "STRING",
+          "description": "当前是否绑定银行卡('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_bind_fps",
+          "cn_name": "当前是否绑定FPS",
+          "type": "STRING",
+          "description": "当前是否绑定FPS('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "transact_amt_r1d",
+          "cn_name": "最近1天内交易金额",
+          "type": "BIGINT",
+          "description": "最近1天内交易金额，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "transact_amt_r7d",
+          "cn_name": "最近7天内交易金额",
+          "type": "BIGINT",
+          "description": "最近7天内交易金额，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "transact_amt_r30d",
+          "cn_name": "最近30天内交易金额",
+          "type": "BIGINT",
+          "description": "最近30天内交易金额，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "transact_num_r1d",
+          "cn_name": "最近1天内交易次数",
+          "type": "BIGINT",
+          "description": "最近1天内交易次数，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "transact_num_r7d",
+          "cn_name": "最近7天内交易次数",
+          "type": "BIGINT",
+          "description": "最近7天内交易次数，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "transact_num_r30d",
+          "cn_name": "最近30天内交易次数",
+          "type": "BIGINT",
+          "description": "最近30天内交易次数，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "pay_level_r30d",
+          "cn_name": "用户近30天支付活跃分级",
+          "type": "STRING",
+          "description": "G1-R30D高频次,高金额、G2-R30D高频次,中低金额...G9-R30D无支付活跃",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 35
+          }
+        },
+        {
+          "name": "local_offline_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-本地線下",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-本地線下，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "online_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-線上",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-線上，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "transfer_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-轉賬",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-轉賬，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "fee_payment_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-繳費",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-繳費，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "crossborder_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-跨境線下",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-跨境線下，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "transport_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-交通",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-交通，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "finance_scene_cnt_r30d",
+          "cn_name": "最近30天交易笔数-金融",
+          "type": "BIGINT",
+          "description": "最近30天交易笔数-金融，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "topup_cnt_r1d",
+          "cn_name": "1日充值笔数",
+          "type": "BIGINT",
+          "description": "1日充值笔数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "topup_cnt_r7d",
+          "cn_name": "7日内充值笔数",
+          "type": "BIGINT",
+          "description": "7日内充值笔数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "topup_cnt_r30d",
+          "cn_name": "30日内充值笔数",
+          "type": "BIGINT",
+          "description": "30日内充值笔数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "topup_amt_r1d",
+          "cn_name": "1日充值金额",
+          "type": "BIGINT",
+          "description": "1日充值金额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "topup_amt_r7d",
+          "cn_name": "7日内充值金额",
+          "type": "BIGINT",
+          "description": "7日内充值金额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "topup_amt_r30d",
+          "cn_name": "30日内充值金额",
+          "type": "BIGINT",
+          "description": "30日内充值金额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "is_local_buscode",
+          "cn_name": "是否開通本地乘車碼",
+          "type": "STRING",
+          "description": "是否開通本地乘車碼 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 67
+          }
+        },
+        {
+          "name": "is_cross_buscode",
+          "cn_name": "是否開通跨境乘車碼",
+          "type": "STRING",
+          "description": "是否開通跨境乘車碼 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 67
+          }
+        },
+        {
+          "name": "is_auth_taxi",
+          "cn_name": "是否授權打車",
+          "type": "STRING",
+          "description": "是否授權打車 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 67
+          }
+        },
+        {
+          "name": "taxi_gaode_cnt_r30d",
+          "cn_name": "最近30天使用高德打车次数",
+          "type": "BIGINT",
+          "description": "最近30天使用高德打车次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 67
+          }
+        },
+        {
+          "name": "taxi_didi_cnt_r30d",
+          "cn_name": "最近30天使用滴滴打车次数",
+          "type": "BIGINT",
+          "description": "最近30天使用滴滴打车次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 67
+          }
+        },
+        {
+          "name": "high_rail_r30d",
+          "cn_name": "最近30天乘坐高铁次数",
+          "type": "STRING",
+          "description": "最近30天乘坐高铁次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 67
+          }
+        },
+        {
+          "name": "is_register_emplus",
+          "cn_name": "是否开通eM+",
+          "type": "STRING",
+          "description": "是否开通eM+('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 77
+          }
+        },
+        {
+          "name": "emplus_balance_amt_range",
+          "cn_name": "eM+余额区间",
+          "type": "BIGINT",
+          "description": "eM+余额区间(元)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 77
+          }
+        },
+        {
+          "name": "em_deposit_cnts_r30d",
+          "cn_name": "用户最近30天入金次数",
+          "type": "BIGINT",
+          "description": "用户最近30天入金次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 77
+          }
+        },
+        {
+          "name": "em_deposit_amounts_r30d",
+          "cn_name": "用户最近30天入金金额",
+          "type": "STRING",
+          "description": "用户最近30天入金金额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 77
+          }
+        },
+        {
+          "name": "fund_holdings_amt",
+          "cn_name": "个人持仓总值",
+          "type": "BIGINT",
+          "description": "个人持仓总值",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 77
+          }
+        },
+        {
+          "name": "cur_fund_holdings_cnt",
+          "cn_name": "当前持仓数量",
+          "type": "BIGINT",
+          "description": "当前持仓数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 77
+          }
+        },
+        {
+          "name": "government_payment_r30",
+          "cn_name": "最近30天的政府缴费场景",
+          "type": "STRING",
+          "description": "水務署，薪俸稅，物業稅，學生還款，差餉，其他",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 87
+          }
+        },
+        {
+          "name": "living_payment_r30",
+          "cn_name": "最近30天的生活缴费场景",
+          "type": "STRING",
+          "description": "電費_CLP，電費_港燈，煤氣費，管理費，大學繳費，其他",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 87
+          }
+        },
+        {
+          "name": "telecom_payment_r30",
+          "cn_name": "最近30天的電讯缴费场景",
+          "type": "STRING",
+          "description": "香港寛頻，中置移動香港，3HK，數碼通，香港電訊HKT，電訊數碼，其他",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 87
+          }
+        },
+        {
+          "name": "trx_freq_level_r7d",
+          "cn_name": "交易频次等级",
+          "type": "",
+          "description": "交易频次等级",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "trx_freq_level_r30d",
+          "cn_name": "交易频次等级",
+          "type": "",
+          "description": "交易频次等级",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "trx_amt_level_r7d",
+          "cn_name": "交易金额等级",
+          "type": "",
+          "description": "交易金额等级",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "trx_amt_level_r30d",
+          "cn_name": "交易金额等级",
+          "type": "",
+          "description": "交易金额等级",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "avg_trx_amt_r7d",
+          "cn_name": "笔均交易金额",
+          "type": "DECIMAL",
+          "description": "笔均交易金额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "avg_trx_amt_r30d",
+          "cn_name": "笔均交易金额",
+          "type": "DECIMAL",
+          "description": "笔均交易金额",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "primary_trx_scene_r30d",
+          "cn_name": "近30天主交易场景",
+          "type": "",
+          "description": "近30天主交易场景",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "primary_trx_hour_r7d",
+          "cn_name": "近7天主交易时段",
+          "type": "",
+          "description": "近7天主交易时段",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "is_weekend_trx_prefer",
+          "cn_name": "是否偏好周末交易",
+          "type": "",
+          "description": "是否偏好周末交易",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "primary_pay_channel_r7d",
+          "cn_name": "近7天主支付渠道",
+          "type": "",
+          "description": "近7天主支付渠道",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "refund_cnt_r7d",
+          "cn_name": "退款笔数",
+          "type": "INT",
+          "description": "退款笔数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "refund_cnt_r30d",
+          "cn_name": "退款笔数",
+          "type": "INT",
+          "description": "退款笔数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "refund_ratio_r30d",
+          "cn_name": "近30天退款率",
+          "type": "DECIMAL",
+          "description": "近30天退款率",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "coupon_usage_cnt_r30d",
+          "cn_name": "近30天用券笔数",
+          "type": "INT",
+          "description": "近30天用券笔数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "coupon_usage_ratio_r30d",
+          "cn_name": "近30天用券率",
+          "type": "DECIMAL",
+          "description": "近30天用券率",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "分区日期",
+          "type": "",
+          "description": "分区日期",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 251
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    user_id,\n    is_card_info,\n    effective_bind_card_cnt,\n    bind_card_cnt,\n    is_bind_credit,\n    is_bank_bind\nFROM antsg_asap.adm_asap_pay_user_label_dd\nWHERE dt = '${bizdate}'\n  AND is_card_info = '1'",
+        "SELECT \n    user_id,\n    transact_num_r7d,\n    transact_num_r30d,\n    transact_amt_r7d,\n    transact_amt_r30d,\n    pay_level_r30d\nFROM antsg_asap.adm_asap_pay_user_label_dd\nWHERE dt = '${bizdate}'\n  AND transact_num_r30d > 0",
+        "SELECT \n    user_id,\n    topup_cnt_r7d,\n    topup_cnt_r30d,\n    topup_amt_r7d,\n    topup_amt_r30d\nFROM antsg_asap.adm_asap_pay_user_label_dd\nWHERE dt = '${bizdate}'\n  AND topup_cnt_r30d > 0",
+        "SELECT \n    user_id,\n    is_register_emplus,\n    emplus_balance_amt_range,\n    fund_holdings_amt,\n    cur_fund_holdings_cnt\nFROM antsg_asap.adm_asap_pay_user_label_dd\nWHERE dt = '${bizdate}'\n  AND is_register_emplus = '1'"
+      ],
+      "source": {
+        "file": "画像域_04_adm_asap_pay_user_label_dd.md"
+      }
+    },
+    {
+      "table_name": "adm_asap_other_action_user_label_dd",
+      "database": "antsg_asap",
+      "full_name": "antsg_asap.adm_asap_other_action_user_label_dd",
+      "description": "用户非交易行为画像表，包含用户登录、活跃、领券、核销、关注商户等非交易行为标签。该表记录用户的非交易行为特征，包括APP访问、权益领取、商户关注、积分使用等行为，为用户运营、精准营销提供数据支持。",
+      "partition_field": "dt",
+      "join_keys": [
+        "user_id",
+        "dt"
+      ],
+      "columns": [
+        {
+          "name": "user_active_r3d",
+          "cn_name": "最近3天活跃天数",
+          "type": "STRING",
+          "description": "最近3天活跃天数，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "user_active_r7d",
+          "cn_name": "最近7天活跃天数",
+          "type": "STRING",
+          "description": "最近7天活跃天数，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "user_active_r30d",
+          "cn_name": "最近30天活跃天数",
+          "type": "STRING",
+          "description": "最近30天活跃天数，默认0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "login_cnt_r1d",
+          "cn_name": "近1日登录次数",
+          "type": "BIGINT",
+          "description": "近1日登录次数，无登陆是0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "login_cnt_r7d",
+          "cn_name": "7日内登录次数",
+          "type": "BIGINT",
+          "description": "7日内登录次数，无登陆是0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "login_cnt_r30d",
+          "cn_name": "30日内登录次数",
+          "type": "BIGINT",
+          "description": "30日内登录次数，无登陆是0",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "user_activity_level",
+          "cn_name": "用户活跃等级",
+          "type": "STRING",
+          "description": "用户活跃等级(低频,中频,高频,沉默,流失,其它)",
+          "value_hints": [
+            "低频,中频,高频,沉默,流失,其它"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "user_login_frequency",
+          "cn_name": "用户登录频次",
+          "type": "STRING",
+          "description": "用户登录频次(上升,保持,下降)",
+          "value_hints": [
+            "上升,保持,下降"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_7d_active",
+          "cn_name": "近7天是否活跃",
+          "type": "STRING",
+          "description": "近7天是否活跃('1':是, '0':否)",
+          "value_hints": [
+            "1",
+            "0",
+            "'1':是, '0':否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "is_30d_active",
+          "cn_name": "近30天是否活跃",
+          "type": "STRING",
+          "description": "近30天是否活跃('1':是, '0':否)",
+          "value_hints": [
+            "1",
+            "0",
+            "'1':是, '0':否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 23
+          }
+        },
+        {
+          "name": "send_cnt_r1d",
+          "cn_name": "用户最近1天领券数量",
+          "type": "BIGINT",
+          "description": "用户最近1天领券数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 37
+          }
+        },
+        {
+          "name": "send_cnt_r7d",
+          "cn_name": "用户最近7天领券数量",
+          "type": "BIGINT",
+          "description": "用户最近7天领券数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 37
+          }
+        },
+        {
+          "name": "send_cnt_r30d",
+          "cn_name": "用户最近30天领券数量",
+          "type": "BIGINT",
+          "description": "用户最近30天领券数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 37
+          }
+        },
+        {
+          "name": "use_cnt_r1d",
+          "cn_name": "用户最近1天核销券数量",
+          "type": "BIGINT",
+          "description": "用户最近1天核销券数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 37
+          }
+        },
+        {
+          "name": "use_cnt_r7d",
+          "cn_name": "用户最近7天核销券数量",
+          "type": "BIGINT",
+          "description": "用户最近7天核销券数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 37
+          }
+        },
+        {
+          "name": "use_cnt_r30d",
+          "cn_name": "用户最近30天核销券数量",
+          "type": "BIGINT",
+          "description": "用户最近30天核销券数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 37
+          }
+        },
+        {
+          "name": "equity_send_cnt_pts_r7d",
+          "cn_name": "用户过去7天在积分权益的领取次数",
+          "type": "BIGINT",
+          "description": "用户过去7天在积分权益的领取次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 47
+          }
+        },
+        {
+          "name": "equity_use_cnt_pts_r7d",
+          "cn_name": "用户过去7天在积分权益的核销次数",
+          "type": "BIGINT",
+          "description": "用户过去7天在积分权益的核销次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 47
+          }
+        },
+        {
+          "name": "equity_send_cnt_rp_r7d",
+          "cn_name": "用户过去7天在红包权益的领取次数",
+          "type": "BIGINT",
+          "description": "用户过去7天在红包权益的领取次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 47
+          }
+        },
+        {
+          "name": "equity_use_cnt_rp_r7d",
+          "cn_name": "用户过去7天在红包权益的核销次数",
+          "type": "BIGINT",
+          "description": "用户过去7天在红包权益的核销次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 47
+          }
+        },
+        {
+          "name": "equity_send_cnt_pts_r30d",
+          "cn_name": "用户过去30天在积分权益的领取次数",
+          "type": "BIGINT",
+          "description": "用户过去30天在积分权益的领取次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 47
+          }
+        },
+        {
+          "name": "equity_use_cnt_pts_r30d",
+          "cn_name": "用户过去30天在积分权益的核销次数",
+          "type": "BIGINT",
+          "description": "用户过去30天在积分权益的核销次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 47
+          }
+        },
+        {
+          "name": "is_point_new_user",
+          "cn_name": "是否积分新用户",
+          "type": "STRING",
+          "description": "是否积分新用户(30天首次使用积分) ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "is_point_growing_user",
+          "cn_name": "是否积分成长用户",
+          "type": "STRING",
+          "description": "是否积分成长用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "is_point_active_user",
+          "cn_name": "是否成熟积分用户",
+          "type": "STRING",
+          "description": "是否成熟积分用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "is_point_lost_user",
+          "cn_name": "是否积分流失用户",
+          "type": "STRING",
+          "description": "是否积分流失用户('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "available_point_total",
+          "cn_name": "总积分可用数量",
+          "type": "STRING",
+          "description": "总积分可用数量",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 57
+          }
+        },
+        {
+          "name": "user_push_exposure_pv_r30d",
+          "cn_name": "用户近30天push触达次数",
+          "type": "BIGINT",
+          "description": "用户近30天push触达次数(数值类型)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 66
+          }
+        },
+        {
+          "name": "user_push_exposure_pv_r7d",
+          "cn_name": "用户近7天push触达次数",
+          "type": "BIGINT",
+          "description": "用户近7天push触达次数(数值类型)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 66
+          }
+        },
+        {
+          "name": "user_push_cilck_pv_r30d",
+          "cn_name": "用户近30天push点击次数",
+          "type": "BIGINT",
+          "description": "用户近30天push点击次数(数值类型)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 66
+          }
+        },
+        {
+          "name": "user_push_cilck_pv_r7d",
+          "cn_name": "用户近7天push点击次数",
+          "type": "BIGINT",
+          "description": "用户近7天push点击次数(数值类型)",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 66
+          }
+        },
+        {
+          "name": "user_push_activity_level",
+          "cn_name": "用户push活跃等级",
+          "type": "STRING",
+          "description": "用户push活跃等级(高频、中频、低频)",
+          "value_hints": [
+            "高频、中频、低频"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 66
+          }
+        },
+        {
+          "name": "paper_clk_r7d",
+          "cn_name": "最近7天腰封点击次数",
+          "type": "STRING",
+          "description": "最近7天腰封点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 75
+          }
+        },
+        {
+          "name": "paper_clk_r30d",
+          "cn_name": "最近30天腰封点击次数",
+          "type": "STRING",
+          "description": "最近30天腰封点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 75
+          }
+        },
+        {
+          "name": "feeds_clk_r7d",
+          "cn_name": "最近7天feeds点击次数",
+          "type": "STRING",
+          "description": "最近7天feeds点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 75
+          }
+        },
+        {
+          "name": "feeds_clk_r30d",
+          "cn_name": "最近30天feeds点击次数",
+          "type": "STRING",
+          "description": "最近30天feeds点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 75
+          }
+        },
+        {
+          "name": "push_clk_r7d",
+          "cn_name": "最近7天push点击次数",
+          "type": "STRING",
+          "description": "最近7天push点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 75
+          }
+        },
+        {
+          "name": "push_clk_r30d",
+          "cn_name": "最近30天push点击次数",
+          "type": "STRING",
+          "description": "最近30天push点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 75
+          }
+        },
+        {
+          "name": "is_follow_food_effective_flag",
+          "cn_name": "当前是否关注餐饮商户",
+          "type": "STRING",
+          "description": "当前是否关注餐饮商户 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 85
+          }
+        },
+        {
+          "name": "is_follow_ent_effective_flag",
+          "cn_name": "当前是否关注休闲娱乐商户",
+          "type": "STRING",
+          "description": "当前是否关注休闲娱乐商户 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 85
+          }
+        },
+        {
+          "name": "is_follow_trans_effective_flag",
+          "cn_name": "当前是否关注交通出行商户",
+          "type": "STRING",
+          "description": "当前是否关注交通出行商户 ('1':是、'0:'否)",
+          "value_hints": [
+            "1",
+            "0:",
+            "'1':是、'0:'否"
+          ],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 85
+          }
+        },
+        {
+          "name": "follow_cnt_r7d",
+          "cn_name": "过去7日关注商户数",
+          "type": "BIGINT",
+          "description": "过去7日关注商户数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 85
+          }
+        },
+        {
+          "name": "follow_cnt_r30d",
+          "cn_name": "过去30日关注商户数",
+          "type": "BIGINT",
+          "description": "过去30日关注商户数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 85
+          }
+        },
+        {
+          "name": "active_freq_level_r7d",
+          "cn_name": "活跃频次等级",
+          "type": "",
+          "description": "活跃频次等级",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "active_freq_level_r30d",
+          "cn_name": "活跃频次等级",
+          "type": "",
+          "description": "活跃频次等级",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "last_active_days",
+          "cn_name": "距今未活跃天数",
+          "type": "INT",
+          "description": "距今未活跃天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "continuous_active_days",
+          "cn_name": "连续活跃天数",
+          "type": "INT",
+          "description": "连续活跃天数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "scan_cnt_r7d",
+          "cn_name": "扫码次数",
+          "type": "INT",
+          "description": "扫码次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "scan_cnt_r30d",
+          "cn_name": "扫码次数",
+          "type": "INT",
+          "description": "扫码次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "page_view_cnt_r7d",
+          "cn_name": "页面浏览次数",
+          "type": "INT",
+          "description": "页面浏览次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "page_view_cnt_r30d",
+          "cn_name": "页面浏览次数",
+          "type": "INT",
+          "description": "页面浏览次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "banner_click_cnt_r7d",
+          "cn_name": "近7天Banner点击次数",
+          "type": "INT",
+          "description": "近7天Banner点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "feeds_click_cnt_r7d",
+          "cn_name": "近7天feeds点击次数",
+          "type": "INT",
+          "description": "近7天feeds点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "search_cnt_r7d",
+          "cn_name": "搜索次数",
+          "type": "INT",
+          "description": "搜索次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "search_cnt_r30d",
+          "cn_name": "搜索次数",
+          "type": "INT",
+          "description": "搜索次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "push_click_cnt_r7d",
+          "cn_name": "push点击次数",
+          "type": "INT",
+          "description": "push点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "push_click_cnt_r30d",
+          "cn_name": "push点击次数",
+          "type": "INT",
+          "description": "push点击次数",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "is_push_click_user",
+          "cn_name": "是否点击过push",
+          "type": "",
+          "description": "是否点击过push",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "分区日期",
+          "type": "",
+          "description": "分区日期",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_01_Schema总览.md",
+            "line_start": 268
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    user_id,\n    user_active_r7d,\n    user_active_r30d,\n    login_cnt_r7d,\n    login_cnt_r30d,\n    user_activity_level\nFROM antsg_asap.adm_asap_other_action_user_label_dd\nWHERE dt = '${bizdate}'\n  AND user_active_r30d > 0",
+        "SELECT \n    user_id,\n    send_cnt_r7d,\n    send_cnt_r30d,\n    use_cnt_r7d,\n    use_cnt_r30d\nFROM antsg_asap.adm_asap_other_action_user_label_dd\nWHERE dt = '${bizdate}'\n  AND send_cnt_r30d > 0",
+        "SELECT \n    user_id,\n    is_follow_food_effective_flag,\n    is_follow_ent_effective_flag,\n    follow_cnt_r30d\nFROM antsg_asap.adm_asap_other_action_user_label_dd\nWHERE dt = '${bizdate}'\n  AND follow_cnt_r30d > 0",
+        "SELECT \n    user_id,\n    is_point_new_user,\n    is_point_active_user,\n    is_point_lost_user,\n    available_point_total\nFROM antsg_asap.adm_asap_other_action_user_label_dd\nWHERE dt = '${bizdate}'\n  AND (is_point_new_user = '1' OR is_point_active_user = '1')",
+        "SELECT \n    user_id,\n    user_push_exposure_pv_r7d,\n    user_push_cilck_pv_r7d,\n    user_push_activity_level\nFROM antsg_asap.adm_asap_other_action_user_label_dd\nWHERE dt = '${bizdate}'\n  AND user_push_exposure_pv_r7d > 0"
+      ],
+      "source": {
+        "file": "画像域_05_adm_asap_other_action_user_label_dd.md"
+      }
+    }
+  ],
+  "business_terms": [
+    {
+      "term": "正常用户",
+      "sql": "WHERE user_status = 'T'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "注销用户",
+      "sql": "WHERE user_status = 'C'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "冻结用户",
+      "sql": "WHERE user_status = 'B'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "新用户（新手期）",
+      "sql": "WHERE life_cycle = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "活跃用户（成长期/成熟期）",
+      "sql": "WHERE life_cycle IN ('2', '3')",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "沉默用户（沉默期）",
+      "sql": "WHERE life_cycle = '5'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "流失用户（流失期）",
+      "sql": "WHERE life_cycle IN ('6', '61')",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "高价值用户",
+      "sql": "WHERE user_value LIKE '1%' OR user_history_value = '高'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "低价值用户",
+      "sql": "WHERE user_value LIKE '8%' OR user_history_value = '低'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "港漂用户",
+      "sql": "WHERE is_hk_drifter = 'CX'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "本地用户（永久居民）",
+      "sql": "WHERE is_hk_drifter = 'AX'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "菲佣用户",
+      "sql": "WHERE is_ph_maid_flag = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "已认证用户",
+      "sql": "WHERE new_user_level = 'verified' OR is_kyc_flag = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "未认证用户",
+      "sql": "WHERE new_user_level = 'unverified'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "商户用户（收钱码）",
+      "sql": "WHERE is_pay_qr = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "营销黑名单（需排除）",
+      "sql": "WHERE is_promo_black_flag = '0' AND is_black_list = '0'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 103
+      }
+    },
+    {
+      "term": "iOS用户",
+      "sql": "WHERE u_os = 'IOS' OR is_login_ios = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "安卓用户",
+      "sql": "WHERE u_os = 'ANDROID' OR is_login_android = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "英文偏好用户",
+      "sql": "WHERE pf_language = 'en_US' OR is_lang_en = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "中文偏好用户",
+      "sql": "WHERE pf_language IN ('zh_HK', 'zh_Hans') OR is_lang_zh = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "内地用户",
+      "sql": "WHERE register_number = '86' OR active_region_r30d = '內地' OR is_lbs_cn = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "香港用户",
+      "sql": "WHERE register_number = '852' OR active_region_r30d = '香港' OR is_lbs_hk = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "澳门用户",
+      "sql": "WHERE register_number = '853'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 124
+      }
+    },
+    {
+      "term": "18岁以下",
+      "sql": "WHERE user_age_group = '1' OR user_age < 18",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "18-25岁",
+      "sql": "WHERE user_age_group IN ('2', '3') OR (user_age >= 18 AND user_age <= 25)",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "26-35岁",
+      "sql": "WHERE user_age_group IN ('4', '5') OR (user_age >= 26 AND user_age <= 35)",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "36-50岁",
+      "sql": "WHERE user_age_group IN ('6', '7') OR (user_age >= 36 AND user_age <= 50)",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "50岁以上",
+      "sql": "WHERE user_age_group IN ('8', '9') OR user_age > 50",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "年轻用户",
+      "sql": "WHERE user_age_group IN ('1', '2', '3', '4')",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "中年用户",
+      "sql": "WHERE user_age_group IN ('5', '6', '7')",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "老年用户",
+      "sql": "WHERE user_age_group IN ('8', '9')",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 136
+      }
+    },
+    {
+      "term": "高偏好",
+      "sql": "WHERE xxx_prefer_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 149
+      }
+    },
+    {
+      "term": "中偏好",
+      "sql": "WHERE xxx_prefer_level = 'medium'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 149
+      }
+    },
+    {
+      "term": "低偏好",
+      "sql": "WHERE xxx_prefer_level = 'low'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 149
+      }
+    },
+    {
+      "term": "偏好某业务",
+      "sql": "WHERE xxx_prefer_level IN ('high', 'medium')",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 149
+      }
+    },
+    {
+      "term": "eM+高潜用户",
+      "sql": "WHERE em_potential_segment = '高潜'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "eM+中潜用户",
+      "sql": "WHERE em_potential_segment = '中潜'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "eM+高价值用户",
+      "sql": "WHERE em_value_user = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "eM+营销敏感用户",
+      "sql": "WHERE em_marketing_sensitivity = '高营销敏感度'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "基金高潜用户",
+      "sql": "WHERE fund_potential_segment = '高潜'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "回流潜力高用户",
+      "sql": "WHERE reactivation_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "沉默风险高用户",
+      "sql": "WHERE silence_risk_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "提频潜力高用户",
+      "sql": "WHERE freq_uplift_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 158
+      }
+    },
+    {
+      "term": "高频交易用户",
+      "sql": "WHERE trx_freq_level_r30d = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "高消费用户",
+      "sql": "WHERE trx_amt_level_r30d = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "线上支付偏好",
+      "sql": "WHERE primary_trx_scene_r30d = '线上' OR ol_prefer_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "线下支付偏好",
+      "sql": "WHERE primary_trx_scene_r30d = '本地线下' OR ll_prefer_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "跨境支付偏好",
+      "sql": "WHERE primary_trx_scene_r30d = '跨境线下' OR cl_prefer_level = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "缴费偏好用户",
+      "sql": "WHERE pt_prefer_level = 'high' OR primary_trx_scene_r30d = '缴费'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "转账偏好用户",
+      "sql": "WHERE tf_prefer_level = 'high' OR primary_trx_scene_r30d = '转账'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "交通支付偏好",
+      "sql": "WHERE tra_prefer_level = 'high' OR primary_trx_scene_r30d = '交通'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "周末交易偏好",
+      "sql": "WHERE is_weekend_trx_prefer = '1'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "高退款用户",
+      "sql": "WHERE refund_ratio_r30d > 0.1",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "喜欢用券用户",
+      "sql": "WHERE coupon_usage_ratio_r30d > 0.5",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 171
+      }
+    },
+    {
+      "term": "活跃用户（近7天）",
+      "sql": "WHERE is_7d_active = '1' OR active_freq_level_r7d = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    },
+    {
+      "term": "活跃用户（近30天）",
+      "sql": "WHERE is_30d_active = '1' OR active_freq_level_r30d = 'high'",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    },
+    {
+      "term": "沉默用户（7天未活跃）",
+      "sql": "WHERE last_active_days BETWEEN 7 AND 30",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    },
+    {
+      "term": "沉默用户（30天未活跃）",
+      "sql": "WHERE last_active_days > 30",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    },
+    {
+      "term": "流失用户（90天未活跃）",
+      "sql": "WHERE last_active_days > 90",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    },
+    {
+      "term": "连续活跃用户",
+      "sql": "WHERE continuous_active_days >= 7",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    },
+    {
+      "term": "push点击用户",
+      "sql": "WHERE is_push_click_user = '1' OR push_click_cnt_r30d > 0",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 187
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "name": "用户数",
+      "expression": "COUNT(DISTINCT user_id)",
+      "description": "去重用户数",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "年龄平均值",
+      "expression": "AVG(user_age) WHERE user_age > 0",
+      "description": "排除 -1（无年龄）的用户",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "港漂占比",
+      "expression": "COUNT(CASE WHEN is_hk_drifter = 'CX' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "CX = 非永久居民",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "女性占比",
+      "expression": "COUNT(CASE WHEN user_gender = 'F' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "-",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "认证率",
+      "expression": "COUNT(CASE WHEN new_user_level = 'verified' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "-",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "KYC率",
+      "expression": "COUNT(CASE WHEN is_kyc_flag = '1' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "-",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "高价值用户数",
+      "expression": "COUNT(CASE WHEN user_value LIKE '1%' THEN 1 END)",
+      "description": "user_value '1' 开头为高价值",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "新用户数（新手期）",
+      "expression": "COUNT(CASE WHEN life_cycle = '1' THEN 1 END)",
+      "description": "-",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "沉默用户数",
+      "expression": "COUNT(CASE WHEN life_cycle = '5' THEN 1 END)",
+      "description": "-",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "流失用户数",
+      "expression": "COUNT(CASE WHEN life_cycle IN ('6', '61') THEN 1 END)",
+      "description": "-",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 50
+      }
+    },
+    {
+      "name": "高积分偏好用户数",
+      "expression": "COUNT(CASE WHEN pts_prefer_level = 'high' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "腰封高偏好用户占比",
+      "expression": "COUNT(CASE WHEN banner_prefer_level = 'high' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "eM+高潜用户数",
+      "expression": "COUNT(CASE WHEN em_potential_segment = '高潜' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "eM+高价值用户数",
+      "expression": "COUNT(CASE WHEN em_value_user = '1' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "基金高潜用户数",
+      "expression": "COUNT(CASE WHEN fund_potential_segment = '高潜' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "线上高偏好用户数",
+      "expression": "COUNT(CASE WHEN ol_prefer_level = 'high' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "回流高潜用户数",
+      "expression": "COUNT(CASE WHEN reactivation_level = 'high' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "沉默风险高用户数",
+      "expression": "COUNT(CASE WHEN silence_risk_level = 'high' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 65
+      }
+    },
+    {
+      "name": "高频交易用户数",
+      "expression": "COUNT(CASE WHEN trx_freq_level_r30d = 'high' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 78
+      }
+    },
+    {
+      "name": "高消费用户数",
+      "expression": "COUNT(CASE WHEN trx_amt_level_r30d = 'high' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 78
+      }
+    },
+    {
+      "name": "平均近30天交易笔均金额",
+      "expression": "AVG(avg_trx_amt_r30d)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 78
+      }
+    },
+    {
+      "name": "退款率（平均）",
+      "expression": "AVG(refund_ratio_r30d)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 78
+      }
+    },
+    {
+      "name": "用券率（平均）",
+      "expression": "AVG(coupon_usage_ratio_r30d)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 78
+      }
+    },
+    {
+      "name": "线上交易偏好用户占比",
+      "expression": "COUNT(CASE WHEN primary_trx_scene_r30d = '线上' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 78
+      }
+    },
+    {
+      "name": "月活跃用户数",
+      "expression": "COUNT(CASE WHEN is_30d_active = '1' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 89
+      }
+    },
+    {
+      "name": "周活跃用户数",
+      "expression": "COUNT(CASE WHEN is_7d_active = '1' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 89
+      }
+    },
+    {
+      "name": "沉默用户数（30天未活跃）",
+      "expression": "COUNT(CASE WHEN last_active_days > 30 THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 89
+      }
+    },
+    {
+      "name": "高活跃用户占比",
+      "expression": "COUNT(CASE WHEN active_freq_level_r30d = 'high' THEN 1 END) / NULLIF(COUNT(*), 0)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 89
+      }
+    },
+    {
+      "name": "平均登录次数（近30天）",
+      "expression": "AVG(login_cnt_r30d)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 89
+      }
+    },
+    {
+      "name": "push点击用户数",
+      "expression": "COUNT(CASE WHEN is_push_click_user = '1' THEN 1 END)",
+      "description": "",
+      "source": {
+        "file": "画像域_01_Schema总览.md",
+        "line_start": 89
+      }
+    }
+  ],
+  "field_index": {
+    "user_id": [
+      "antsg_asap.adm_asap_base_user_label_dd",
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "user_status": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_age": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_gender": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_hk_drifter": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_ph_maid_flag": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_birth_month": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_birth_day": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_to_birth_x_day": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_birth_date_gmt": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "register_date": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "register_gmt": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "register_days": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "register_number": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "new_user_level": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_pay_qr": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_taxi_merchant": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "cert_cn_nation": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_age_group": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "new_old_user_level": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_type": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_have_name_flag": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_actived_flag": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "actived_days": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "nationality": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "careers": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "credential_type": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "pf_language": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_promo_black_flag": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "balance": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "register_from": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_bind_mobile_flag": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_app_739_versio": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "u_device_model": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "u_device_resolution": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "u_os": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "u_resident_province": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "u_resident_city": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_push_power": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_push_gw": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_lang_en": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_lang_zh": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_login_ios": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_login_android": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "kyc_level": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_kyc_flag": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_ekyc": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "life_cycle": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_value": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "user_history_value": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "active_region_r7d": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "active_region_r15d": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "active_region_r30d": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "active_region_r365d": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "active_region_his": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_lbs_hk": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_lbs_cn": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_lbs_ma": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_lbs_jp": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "city_num_r1y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "city_num_r2y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "city_num_r3y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "country_num_r1y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "country_num_r2y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "country_num_r3y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "travel_days": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "travel_days_r1y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "travel_days_r2y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "travel_days_r3y": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "isoversea_2year": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "is_black_list": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "pl_apply_predict_score": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "pl_apply_predict_score_ph_maid": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "pl_apply_user_rank": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "pl_apply_user_rank_v3": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "ploan_riskseg": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "mcard_riskseg": [
+      "antsg_asap.adm_asap_base_user_label_dd"
+    ],
+    "dt": [
+      "antsg_asap.adm_asap_base_user_label_dd",
+      "anthk_sg.adm_asap_algo_user_label_dd",
+      "antsg_asap.adm_asap_pay_user_label_dd",
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "pts_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "ec_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "mev_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "rp_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "if_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "faid_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "banner_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "pay_success_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "feeds_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "voucher_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "finance_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "target_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "ol_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "ll_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "cl_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "pt_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "tf_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "tra_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "rm_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "sv_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "fin01_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "fin02_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "cou_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "ui_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "healthcare_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "fb_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "retail_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "travel_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "comprehfinance_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "other_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "game_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "recreation_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "bathinghealth_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "housekeeping_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "filmshowsport_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "beauty_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "audiovisualmember_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "telfee_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "callcar_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "travelservice_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "tram_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "wealthmanage_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "otherfee_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "bus_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "bank_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "service_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "ferry_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "prenatalcare_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "govbill_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "livingfee_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "highspeedrail_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "sharedservice_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "minibus_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "metro_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "cloth_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "exercise_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "airport_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "platformincentives_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "userrights_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "accounttransaction_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "ai_brand_prefer_top_items": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "reactivation_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "silence_risk_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "freq_uplift_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r23h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r22h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r21h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r20h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r19h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r18h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r17h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r16h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r15h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r14h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r13h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r12h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r11h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r10h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r09h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r08h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r07h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r06h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r05h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r04h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r03h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r02h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r01h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "r00h_prefer_level": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_potential_segment": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_transfer_in_label": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_value_user": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_marketing_sensitivity": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_potential_rank": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_transfer_rank": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_mkt_perfer_rank": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "fund_potential_rank": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "fund_potential_segment": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_potential_banner_score": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "em_potential_banner_rank": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "fund_subs_rank": [
+      "anthk_sg.adm_asap_algo_user_label_dd"
+    ],
+    "is_bank_no": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_card_info": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "effective_bind_card_cnt": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "bind_card_cnt": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_bind_boci": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_bind_credit": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_bank_bind": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_bind_fps": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transact_amt_r1d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transact_amt_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transact_amt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transact_num_r1d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transact_num_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transact_num_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "pay_level_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "local_offline_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "online_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transfer_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "fee_payment_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "crossborder_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "transport_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "finance_scene_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "topup_cnt_r1d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "topup_cnt_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "topup_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "topup_amt_r1d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "topup_amt_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "topup_amt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_local_buscode": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_cross_buscode": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_auth_taxi": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "taxi_gaode_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "taxi_didi_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "high_rail_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_register_emplus": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "emplus_balance_amt_range": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "em_deposit_cnts_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "em_deposit_amounts_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "fund_holdings_amt": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "cur_fund_holdings_cnt": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "government_payment_r30": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "living_payment_r30": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "telecom_payment_r30": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "trx_freq_level_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "trx_freq_level_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "trx_amt_level_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "trx_amt_level_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "avg_trx_amt_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "avg_trx_amt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "primary_trx_scene_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "primary_trx_hour_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "is_weekend_trx_prefer": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "primary_pay_channel_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "refund_cnt_r7d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "refund_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "refund_ratio_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "coupon_usage_cnt_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "coupon_usage_ratio_r30d": [
+      "antsg_asap.adm_asap_pay_user_label_dd"
+    ],
+    "user_active_r3d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_active_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_active_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "login_cnt_r1d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "login_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "login_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_activity_level": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_login_frequency": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_7d_active": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_30d_active": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "send_cnt_r1d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "send_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "send_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "use_cnt_r1d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "use_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "use_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "equity_send_cnt_pts_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "equity_use_cnt_pts_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "equity_send_cnt_rp_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "equity_use_cnt_rp_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "equity_send_cnt_pts_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "equity_use_cnt_pts_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_point_new_user": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_point_growing_user": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_point_active_user": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_point_lost_user": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "available_point_total": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_push_exposure_pv_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_push_exposure_pv_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_push_cilck_pv_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_push_cilck_pv_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "user_push_activity_level": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "paper_clk_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "paper_clk_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "feeds_clk_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "feeds_clk_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "push_clk_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "push_clk_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_follow_food_effective_flag": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_follow_ent_effective_flag": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_follow_trans_effective_flag": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "follow_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "follow_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "active_freq_level_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "active_freq_level_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "last_active_days": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "continuous_active_days": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "scan_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "scan_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "page_view_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "page_view_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "banner_click_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "feeds_click_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "search_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "search_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "push_click_cnt_r7d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "push_click_cnt_r30d": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ],
+    "is_push_click_user": [
+      "antsg_asap.adm_asap_other_action_user_label_dd"
+    ]
+  }
+}

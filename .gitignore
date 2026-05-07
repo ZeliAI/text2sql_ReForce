@@ -9,6 +9,10 @@ spider2-lite/resource/databases/spider2-localdb
 data/BIRD/dev_databases
 spider2-lite/resource/local_sqlite.zip
 
+# business eval source docs
+data/业务评测集_markdown/
+data/合并表结构.txt
+
 # output log
 spider2-snow/evaluation_suite/log.txt
 
@@ -20,6 +24,7 @@ methods/ReFoRCE/examples*
 
 # output folder
 methods/ReFoRCE/output/
+output/
 
 # vscode
 .vscode/

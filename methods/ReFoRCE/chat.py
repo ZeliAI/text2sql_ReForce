@@ -271,9 +271,12 @@ class GPTChat(BaseChat):
         elif provider == "openai":
             base_url = os.environ.get("OPENAI_BASE_URL") or None
             api_key = os.environ.get("OPENAI_API_KEY")
-        elif provider == "simpleai":
+        elif provider in {"simpleai", "claude"}:
             base_url = os.environ.get("SIMPLEAI_BASE_URL") or "https://key.simpleai.com.cn/v1"
             api_key = os.environ.get("SIMPLEAI_API_KEY")
+            if provider == "claude":
+                base_url = os.environ.get("CLAUDE_BASE_URL") or base_url
+                api_key = os.environ.get("CLAUDE_API_KEY") or api_key
         elif provider == "openai_compatible":
             base_url = os.environ.get("OPENAI_COMPATIBLE_BASE_URL") or os.environ.get("LLM_BASE_URL")
             api_key = os.environ.get("OPENAI_COMPATIBLE_API_KEY") or os.environ.get("LLM_API_KEY")
