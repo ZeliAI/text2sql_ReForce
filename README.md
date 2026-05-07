@@ -8,6 +8,28 @@
 
 This repository is based on the original [Snowflake-Labs/ReFoRCE](https://github.com/Snowflake-Labs/ReFoRCE) project and has been adapted for local Text-to-SQL agent debugging, Lite SQLite-only execution, configurable LLM providers, retry-aware API calls, and test-mode logging.
 
+## Online Agent Quick Start
+
+For day-to-day team testing, use the top-level online agent entrypoints instead of the legacy `methods/ReFoRCE` path.
+
+```bash
+conda create -n reforce python=3.10 -y
+conda activate reforce
+pip install -r requirements.txt
+cp .env.example .env
+python3 run_online_agent.py --help
+python3 build_domain_registry.py --help
+```
+
+Key files for the online agent:
+
+- `run_online_agent.py`
+- `build_domain_registry.py`
+- `online_agent/`
+- `configs/online_agent_v1_2.json`
+- `.env.example`
+- `docs/LOCAL_AGENT.md`
+
 ## News 🗞️
 - **2025.07:** We add a simple table-level schema linking method that achieves high recall, details in [README.md](methods/SL/gen_sl/README.md).
 
@@ -53,19 +75,21 @@ We present ReFoRCE, a Text-to-SQL agent that tops the [Spider 2.0 leaderboard](h
 - The evaluation in this repository is based on execution results. Make sure to run the gold SQLs to get the latest results and place them in [Spider2-lite Exec Results Folder](spider2-lite/evaluation_suite/gold/exec_result) and [Spider2-snow Exec Results Folder](spider2-snow/evaluation_suite/gold/exec_result) respectively; otherwise, performance may drop a bit due to changes in the database and updates from Spider 2.0.
 
 ### Setup ⚙️  
-Navigate to the ReFoRCE method folder:  
-```bash
-cd methods/ReFoRCE
-```
+For the online business Text2SQL agent, stay at the repository root.
 
 Install Dependencies:
-```
+```bash
 conda create -n reforce python=3.10 -y
 conda activate reforce
 pip install -r requirements.txt
 ```
 
-Credentials Setup: Place your `snowflake_credential.json` and `bigquery_credential.json` in the methods/ReFoRCE folder. Obtain your credentials from the [Spider2 Repo](https://github.com/xlang-ai/Spider2).
+Environment Setup:
+```bash
+cp .env.example .env
+```
+
+Legacy Spider / benchmark flows still live under `methods/ReFoRCE`, but daily team testing of the online agent should use the repository-root entrypoints.
 
 ### Scripts 🚀
 
