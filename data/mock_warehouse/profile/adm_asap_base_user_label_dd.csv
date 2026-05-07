@@ -1,0 +1,4 @@
+user_id,dt,user_age,user_age_group,user_gender,life_cycle
+U1001,2026-05-06,28,25-34,F,成长期
+U1002,2026-05-06,41,35-44,M,沉默期
+U1003,2026-05-06,33,25-34,F,衰退期

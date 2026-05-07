@@ -1,7 +1,8 @@
 {
   "domain": "画像域",
   "version": "p0_rule_based_from_markdown",
-  "source_dir": "/Users/jiefeng/Documents/codex_test/truly_text2sql/text2sql_ReForce/data/业务评测集_markdown",
+  "source_dir": "/Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/data/画像域表合并",
+  "eval_source": "/Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/data/文档二_画像域Text2SQL评测集.md",
   "global_rules": {
     "join_rule": "4 张画像域表通过 user_id + dt JOIN，优先单表查询，只有跨表字段组合时才 JOIN。",
     "dt_rule": "所有查询必须指定 dt 分区；P0 默认使用 dt = max_pt('完整表名')，除非输入明确要求固定日期。",
@@ -2712,6 +2713,30 @@
       ],
       "columns": [
         {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "STRING",
+          "description": "用户ID；画像域表通用关联键",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 0,
+            "note": "Derived from global profile-domain join/partition rules."
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "分区日期",
+          "type": "STRING",
+          "description": "分区日期；画像域表通用分区字段",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_04_adm_asap_pay_user_label_dd.md",
+            "line_start": 0,
+            "note": "Derived from global profile-domain join/partition rules."
+          }
+        },
+        {
           "name": "is_bank_no",
           "cn_name": "是否绑定非直连银行",
           "type": "STRING",
@@ -3388,17 +3413,6 @@
             "file": "画像域_01_Schema总览.md",
             "line_start": 251
           }
-        },
-        {
-          "name": "dt",
-          "cn_name": "分区日期",
-          "type": "",
-          "description": "分区日期",
-          "value_hints": [],
-          "source": {
-            "file": "画像域_01_Schema总览.md",
-            "line_start": 251
-          }
         }
       ],
       "examples": [
@@ -3422,6 +3436,30 @@
         "dt"
       ],
       "columns": [
+        {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "STRING",
+          "description": "用户ID；画像域表通用关联键",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 0,
+            "note": "Derived from global profile-domain join/partition rules."
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "分区日期",
+          "type": "STRING",
+          "description": "分区日期；画像域表通用分区字段",
+          "value_hints": [],
+          "source": {
+            "file": "画像域_05_adm_asap_other_action_user_label_dd.md",
+            "line_start": 0,
+            "note": "Derived from global profile-domain join/partition rules."
+          }
+        },
         {
           "name": "user_active_r3d",
           "cn_name": "最近3天活跃天数",
@@ -4096,17 +4134,6 @@
           "cn_name": "是否点击过push",
           "type": "",
           "description": "是否点击过push",
-          "value_hints": [],
-          "source": {
-            "file": "画像域_01_Schema总览.md",
-            "line_start": 268
-          }
-        },
-        {
-          "name": "dt",
-          "cn_name": "分区日期",
-          "type": "",
-          "description": "分区日期",
           "value_hints": [],
           "source": {
             "file": "画像域_01_Schema总览.md",
@@ -4891,7 +4918,9 @@
   "field_index": {
     "user_id": [
       "antsg_asap.adm_asap_base_user_label_dd",
-      "anthk_sg.adm_asap_algo_user_label_dd"
+      "anthk_sg.adm_asap_algo_user_label_dd",
+      "antsg_asap.adm_asap_pay_user_label_dd",
+      "antsg_asap.adm_asap_other_action_user_label_dd"
     ],
     "user_status": [
       "antsg_asap.adm_asap_base_user_label_dd"

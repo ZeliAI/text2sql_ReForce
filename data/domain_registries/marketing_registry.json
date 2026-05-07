@@ -1,0 +1,2470 @@
+{
+  "domain": "投放域",
+  "domain_key": "marketing",
+  "version": "v1_2_rule_based_from_markdown",
+  "source_dir": "/Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/data/投放域表合并",
+  "domain_description": "投放域覆盖营销投放业务，包含展位、内容投放、效果追踪等核心场景。\n业务范围：\n- 展位效果：曝光、点击、转化等指标分析\n- 内容效果：曝光、点击、转化等指标分析\n- 任务效果：曝光、点击、转化等指标分析\n---",
+  "global_rules": {
+    "join_rule": "优先使用 DWS 汇总表；仅当需要用户级明细或明细字段时使用 DWD，并按业务外键关联 DIM 表。",
+    "dt_rule": "所有投放域查询必须过滤 dt 分区；线上环境优先补充 environment = 'R'。"
+  },
+  "table_list": [
+    {
+      "table_name": "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "layer": "DWS",
+      "description": "流量分发指标日增汇总表（**优先使用**）",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    },
+    {
+      "table_name": "anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "layer": "DWD",
+      "description": "曝光日志日增明细表",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    },
+    {
+      "table_name": "anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "layer": "DWD",
+      "description": "点击日志日增明细表",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    },
+    {
+      "table_name": "anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "layer": "DIM",
+      "description": "投放任务维度表",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    },
+    {
+      "table_name": "anthk_sg.dim_hk_asap_space_info_dd",
+      "layer": "DIM",
+      "description": "展位信息维度表",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    },
+    {
+      "table_name": "anthk_sg.dim_hk_asap_content_dd",
+      "layer": "DIM",
+      "description": "内容维度表",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    },
+    {
+      "table_name": "anthk_sg.dim_hk_asap_industry_info_dd",
+      "layer": "DIM",
+      "description": "行业信息维度表",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 55
+      }
+    }
+  ],
+  "tables": [
+    {
+      "table_name": "dws_hk_asap_mkt_distribute_index_1d",
+      "database": "anthk_sg",
+      "full_name": "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "layer": "DWS（汇总层）",
+      "description": "投放曝光点击轻度汇总表",
+      "partition_field": "dt",
+      "join_keys": [
+        "industry_org_id"
+      ],
+      "columns": [
+        {
+          "name": "dt",
+          "cn_name": "日期分区",
+          "type": "string",
+          "description": "日期分区；格式: yyyyMMdd，如 \"20260319\"",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "space_id",
+          "cn_name": "展位ID",
+          "type": "string",
+          "description": "展位ID；外键→dim_hk_asap_space_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "space_code",
+          "cn_name": "展位CODE",
+          "type": "string",
+          "description": "展位CODE；如 \"HK_HOME_PAGE_THEME_BANNER\"",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "space_name",
+          "cn_name": "展位名称",
+          "type": "string",
+          "description": "展位名称；如 \"首页feeds\"",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "delivery_task_id",
+          "cn_name": "投放任务ID",
+          "type": "string",
+          "description": "投放任务ID；外键→dim_hk_asap_mkt_delivery_task_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "delivery_task_name",
+          "cn_name": "投放任务名称",
+          "type": "string",
+          "description": "投放任务名称；举例： \"12.29-生活频道-北上-$90\"",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业ID",
+          "type": "string",
+          "description": "行业ID；外键→dim_hk_asap_industry_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业名称",
+          "type": "string",
+          "description": "行业名称；数字生活_积分, 数字金融_自营金融, 数字支付_交通等",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "content_id",
+          "cn_name": "投放内容ID / 供给ID / 商户ID",
+          "type": "string",
+          "description": "投放内容ID / 供给ID / 商户ID；举例：sgprodsg_maga_hktraffic_static_content...",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "title",
+          "cn_name": "投放内容标题 / 供给名称 / 商户名称",
+          "type": "string",
+          "description": "投放内容标题 / 供给名称 / 商户名称；举例：流失電訊用戶首頁卡片",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "content_type",
+          "cn_name": "内容类型",
+          "type": "string",
+          "description": "内容类型；STATIC_CONTENT, POINT_TASK, BENEFIT, SALE_BENEFIT, EXCHANGE, BRAND, TICKET, MINI_APP, SIM",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "traffic_type",
+          "cn_name": "流量类型",
+          "type": "string",
+          "description": "流量类型；NON_COMMERCIAL_COMPETITIVE(竞争流量), COMMERCIAL(商业化流量), NON_COMMERCIAL_BUDGET(预算流量)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户ID（计算UV时使用）",
+          "type": "string",
+          "description": "用户ID（计算UV时使用）；举例：2088000341822826",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "slot_id",
+          "cn_name": "坑位ID",
+          "type": "int",
+          "description": "坑位ID；1, 2, 3, 4, 5, 6, 7, 8",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "is_public",
+          "cn_name": "是否公域展位",
+          "type": "tinyint",
+          "description": "是否公域展位；1（公域）/ 0（非公域）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "delivery_task_status",
+          "cn_name": "投放任务状态",
+          "type": "string",
+          "description": "投放任务状态；RELEASED",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境标识",
+          "type": "string",
+          "description": "环境标识；R: Released（线上）/ P: Pre（预发），线上查询必须过滤 environment = 'R'",
+          "value_hints": [
+            "R"
+          ],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 25
+          }
+        },
+        {
+          "name": "expo_pv_1d",
+          "cn_name": "曝光PV / 流量消耗",
+          "type": "bigint",
+          "description": "曝光PV / 流量消耗；预存字段，直接 SUM(expo_pv_1d)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "clk_pv_1d",
+          "cn_name": "点击PV",
+          "type": "bigint",
+          "description": "点击PV；预存字段，直接 SUM(clk_pv_1d)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "expo_uv（计算指标）",
+          "cn_name": "曝光UV",
+          "type": "-",
+          "description": "曝光UV；COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "clk_uv（计算指标）",
+          "cn_name": "点击UV",
+          "type": "-",
+          "description": "点击UV；COUNT(DISTINCT CASE WHEN clk_pv_1d > 0 THEN user_id END)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "pv_ctr（计算指标）",
+          "cn_name": "PV点击率",
+          "type": "-",
+          "description": "PV点击率；SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 46
+          }
+        },
+        {
+          "name": "uv_ctr（计算指标）",
+          "cn_name": "UV点击率",
+          "type": "-",
+          "description": "UV点击率；clk_uv / NULLIF(expo_uv, 0)",
+          "value_hints": [
+            "expo_uv, 0"
+          ],
+          "source": {
+            "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md",
+            "line_start": 46
+          }
+        }
+      ],
+      "examples": [
+        "SELECT\n    space_name,\n    SUM(expo_pv_1d) AS expo_pv,\n    SUM(clk_pv_1d) AS clk_pv,\n    ROUND(SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0), 4) AS pv_ctr\nFROM dws_hk_asap_mkt_distribute_index_1d\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY space_name\nORDER BY expo_pv DESC",
+        "SELECT\n    space_name,\n    SUM(expo_pv_1d) AS expo_pv,\n    SUM(clk_pv_1d) AS clk_pv,\n    COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END) AS expo_uv,\n    COUNT(DISTINCT CASE WHEN clk_pv_1d > 0 THEN user_id END) AS clk_uv,\n    ROUND(\n        COUNT(DISTINCT CASE WHEN clk_pv_1d > 0 THEN user_id END)\n        / NULLIF(COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END), 0)\n    , 4) AS uv_ctr\nFROM dws_hk_asap_mkt_distribute_index_1d\nWHERE dt = '${bizdate}'\n  AND space_name = '首页feeds'\n  AND environment = 'R'\nGROUP BY space_name",
+        "SELECT\n    dt,\n    SUM(expo_pv_1d) AS expo_pv,\n    SUM(clk_pv_1d) AS clk_pv,\n    ROUND(SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0), 4) AS pv_ctr\nFROM dws_hk_asap_mkt_distribute_index_1d\nWHERE dt >= DATE_FORMAT(DATE_SUB('${bizdate}', 6), 'yyyyMMdd')\n  AND dt <= '${bizdate}'\n  AND space_name = '首页feeds'\n  AND environment = 'R'\nGROUP BY dt\nORDER BY dt",
+        "SELECT\n    space_name,\n    SUM(expo_pv_1d) AS compete_expo_pv\nFROM dws_hk_asap_mkt_distribute_index_1d\nWHERE dt = '${bizdate}'\n  AND traffic_type = 'NON_COMMERCIAL_COMPETITIVE'\n  AND environment = 'R'\nGROUP BY space_name\nORDER BY compete_expo_pv DESC",
+        "SELECT\n    content_id,\n    title,\n    COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END) AS expo_uv,\n    COUNT(DISTINCT CASE WHEN clk_pv_1d > 0 THEN user_id END) AS clk_uv,\n    ROUND(\n        COUNT(DISTINCT CASE WHEN clk_pv_1d > 0 THEN user_id END)\n        / NULLIF(COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END), 0)\n    , 4) AS uv_ctr\nFROM dws_hk_asap_mkt_distribute_index_1d\nWHERE dt >= DATE_FORMAT(DATE_SUB('${bizdate}', 6), 'yyyyMMdd')\n  AND dt <= '${bizdate}'\n  AND is_public = 1\n  AND slot_id = 2\n  AND environment = 'R'\nGROUP BY content_id, title\nORDER BY uv_ctr DESC\nLIMIT 1",
+        "SELECT\n    SUM(expo_pv_1d) AS total_expo_pv,\n    SUM(clk_pv_1d) AS total_clk_pv,\n    COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END) AS total_expo_uv\nFROM dws_hk_asap_mkt_distribute_index_1d\nWHERE dt = '${bizdate}'\n  AND environment = 'R'"
+      ],
+      "source": {
+        "file": "投放域_02_dws_hk_asap_mkt_distribute_index_1d.md"
+      }
+    },
+    {
+      "table_name": "dwd_hk_asap_mkt_log_expo_di",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "layer": "DWD（明细层）",
+      "description": "投放域曝光日志日增明细表，用于按用户/事件追踪曝光行为",
+      "partition_field": "dt",
+      "join_keys": [
+        "content_id",
+        "space_code"
+      ],
+      "columns": [
+        {
+          "name": "loged_time",
+          "cn_name": "上传服务器记录时间",
+          "type": "string",
+          "description": "上传服务器记录时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "log_time",
+          "cn_name": "客户端日志时间",
+          "type": "string",
+          "description": "客户端日志时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "alipay_product_id",
+          "cn_name": "产品ID",
+          "type": "string",
+          "description": "产品ID；WALLET_HK_ANDROID,WALLET_HK_IOS",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "alipay_product_version",
+          "cn_name": "产品版本",
+          "type": "string",
+          "description": "产品版本；10.3.96, 9.8.0",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "tcid",
+          "cn_name": "设备id",
+          "type": "string",
+          "description": "设备id；460000000000000\\",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "session_id",
+          "cn_name": "会话id",
+          "type": "string",
+          "description": "会话id；307B7E2F-AD1D-407B-AD48-8F6EB14B8D26",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户id(2088开头)",
+          "type": "string",
+          "description": "用户id(2088开头)；2088222168756612",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "behaviorid",
+          "cn_name": "行为id(exposure)",
+          "type": "string",
+          "description": "行为id(exposure)；exposure",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm",
+          "cn_name": "曝光点的spm",
+          "type": "string",
+          "description": "曝光点的spm；a1.b2.c3.d4",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_a",
+          "cn_name": "曝光点spm的a位",
+          "type": "string",
+          "description": "曝光点spm的a位；a1",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_b",
+          "cn_name": "曝光点spm的b位",
+          "type": "string",
+          "description": "曝光点spm的b位；b2",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_c",
+          "cn_name": "曝光点spm的c位",
+          "type": "string",
+          "description": "曝光点spm的c位；c3",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_d",
+          "cn_name": "曝光点spm的d位",
+          "type": "string",
+          "description": "曝光点spm的d位；d4",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "utdid",
+          "cn_name": "utdid",
+          "type": "string",
+          "description": "utdid；ZdKwcV9lBtsDAEQ5OubWwsdY",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "device_model",
+          "cn_name": "设备号",
+          "type": "string",
+          "description": "设备号；iPhone16 2",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "os_version",
+          "cn_name": "操作系统版本",
+          "type": "string",
+          "description": "操作系统版本；17.6.1",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "network",
+          "cn_name": "网络",
+          "type": "string",
+          "description": "网络；LTE\\",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "language",
+          "cn_name": "语言",
+          "type": "string",
+          "description": "语言；zh-CN, en",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip",
+          "cn_name": "ip",
+          "type": "string",
+          "description": "ip；192.168.1.1, 114.114...",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip_country",
+          "cn_name": "从ip中解析出来的国家名称",
+          "type": "string",
+          "description": "从ip中解析出来的国家名称；中国，USA",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip_province",
+          "cn_name": "从ip中解析出来的省份名称",
+          "type": "string",
+          "description": "从ip中解析出来的省份名称；浙江省，California",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip_city",
+          "cn_name": "从ip中解析出来的城市名称",
+          "type": "string",
+          "description": "从ip中解析出来的城市名称；杭州市，San Francisco",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "log_type",
+          "cn_name": "日志来源渠道",
+          "type": "string",
+          "description": "日志来源渠道；native, h5, cashier",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "experiment_ids",
+          "cn_name": "ABTest的实验id",
+          "type": "string",
+          "description": "ABTest的实验id；exp_12345_groupB",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "space_code",
+          "cn_name": "展位code",
+          "type": "string",
+          "description": "展位code；举例： HK_HOME_PAGE_FEEDS_LIST",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "space_name",
+          "cn_name": "展位名称",
+          "type": "string",
+          "description": "展位名称；举例： 首页feeds",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "delivery_task_id",
+          "cn_name": "投放任务ID",
+          "type": "string",
+          "description": "投放任务ID；外键→dim_hk_asap_mkt_delivery_task_dd\n示例：DELIVERY_PUSH_TASK_20260322_001",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "delivery_task_name",
+          "cn_name": "投放任务名称",
+          "type": "string",
+          "description": "投放任务名称；举例： 12.29-生活频道-北上-$90",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业ID",
+          "type": "string",
+          "description": "行业ID；外键→dim_hk_asap_industry_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业名称",
+          "type": "string",
+          "description": "行业名称；数字生活_积分, 数字金融_自营金融等",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "content_id",
+          "cn_name": "投放内容ID",
+          "type": "string",
+          "description": "投放内容ID；举例：sgprodsg_maga_hktraffic_static_content...",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "title",
+          "cn_name": "投放内容标题",
+          "type": "string",
+          "description": "投放内容标题；举例：流失電訊用戶首頁卡片",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "content_type",
+          "cn_name": "投放内容类型",
+          "type": "string",
+          "description": "投放内容类型；STATIC_CONTENT, POINT_TASK, BENEFIT, SALE_BENEFIT, EXCHANGE, BRAND, TICKET, MINI_APP, SIM",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "traffic_type",
+          "cn_name": "流量类型",
+          "type": "string",
+          "description": "流量类型；NON_COMMERCIAL_COMPETITIVE(竞争流量), COMMERCIAL(商业化流量), NON_COMMERCIAL_BUDGET(预算流量)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "slot_id",
+          "cn_name": "坑位ID",
+          "type": "int",
+          "description": "坑位ID；1, 2, 3, 4, 5, 6, 7, 8",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "is_public",
+          "cn_name": "是否公域展位",
+          "type": "tinyint",
+          "description": "是否公域展位；1（公域）/ 0（非公域）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "delivery_task_status",
+          "cn_name": "投放任务状态",
+          "type": "string",
+          "description": "投放任务状态；RELEASED",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "时间分区",
+          "type": "string",
+          "description": "时间分区；20260327",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md",
+            "line_start": 22
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    dt,\n    COUNT(*) AS expo_pv,\n    COUNT(DISTINCT user_id) AS expo_uv\nFROM dwd_hk_asap_mkt_log_expo_di\nWHERE dt = '${bizdate}'\nGROUP BY dt",
+        "SELECT \n    delivery_task_id,\n    COUNT(*) AS expo_pv,\n    COUNT(DISTINCT user_id) AS expo_uv\nFROM dwd_hk_asap_mkt_log_expo_di\nWHERE dt = '${bizdate}'\nGROUP BY delivery_task_id",
+        "SELECT \n    log_type,\n    COUNT(*) AS expo_pv,\n    COUNT(DISTINCT user_id) AS expo_uv\nFROM dwd_hk_asap_mkt_log_expo_di\nWHERE dt = '${bizdate}'\nGROUP BY log_type"
+      ],
+      "source": {
+        "file": "投放域_03_dwd_hk_asap_mkt_log_expo_di.md"
+      }
+    },
+    {
+      "table_name": "dwd_hk_asap_mkt_log_clk_di",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "layer": "DWD（明细层）",
+      "description": "投放域点击日志日增明细表，用于按用户/事件追踪点击行为",
+      "partition_field": "dt",
+      "join_keys": [
+        "content_id",
+        "space_code"
+      ],
+      "columns": [
+        {
+          "name": "loged_time",
+          "cn_name": "上传服务器记录时间",
+          "type": "string",
+          "description": "上传服务器记录时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "log_time",
+          "cn_name": "客户端日志时间",
+          "type": "string",
+          "description": "客户端日志时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "alipay_product_id",
+          "cn_name": "产品ID",
+          "type": "string",
+          "description": "产品ID；WALLET_HK_ANDROID,WALLET_HK_IOS",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "alipay_product_version",
+          "cn_name": "产品版本",
+          "type": "string",
+          "description": "产品版本；10.3.96, 9.8.0",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "tcid",
+          "cn_name": "设备id",
+          "type": "string",
+          "description": "设备id；460000000000000\\",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "session_id",
+          "cn_name": "会话id",
+          "type": "string",
+          "description": "会话id；307B7E2F-AD1D-407B-AD48-8F6EB14B8D26",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户id(2088开头)",
+          "type": "string",
+          "description": "用户id(2088开头)；2088222168756612",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "behaviorid",
+          "cn_name": "行为id(clicked)",
+          "type": "string",
+          "description": "行为id(clicked)；clicked",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm",
+          "cn_name": "当前点击的spm",
+          "type": "string",
+          "description": "当前点击的spm；a1.b2.c3.d4",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_a",
+          "cn_name": "当前点击spm的a位",
+          "type": "string",
+          "description": "当前点击spm的a位；a1",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_b",
+          "cn_name": "当前点击spm的b位",
+          "type": "string",
+          "description": "当前点击spm的b位；b2",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_c",
+          "cn_name": "当前点击spm的c位",
+          "type": "string",
+          "description": "当前点击spm的c位；c3",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "spm_d",
+          "cn_name": "当前点击spm的d位",
+          "type": "string",
+          "description": "当前点击spm的d位；d4",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "utdid",
+          "cn_name": "utdid",
+          "type": "string",
+          "description": "utdid；ZdKwcV9lBtsDAEQ5OubWwsdY",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "device_model",
+          "cn_name": "设备号",
+          "type": "string",
+          "description": "设备号；iPhone16 2",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "os_version",
+          "cn_name": "操作系统版本",
+          "type": "string",
+          "description": "操作系统版本；17.6.1",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "network",
+          "cn_name": "网络",
+          "type": "string",
+          "description": "网络；LTE\\",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "language",
+          "cn_name": "语言",
+          "type": "string",
+          "description": "语言；zh-CN, en",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip",
+          "cn_name": "ip",
+          "type": "string",
+          "description": "ip；192.168.1.1, 114.114...",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip_country",
+          "cn_name": "从ip中解析出来的国家名称",
+          "type": "string",
+          "description": "从ip中解析出来的国家名称；中国, USA",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip_province",
+          "cn_name": "从ip中解析出来的省份名称",
+          "type": "string",
+          "description": "从ip中解析出来的省份名称；浙江省, California",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "ip_city",
+          "cn_name": "从ip中解析出来的城市名称",
+          "type": "string",
+          "description": "从ip中解析出来的城市名称；杭州市, San Francisco",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "log_type",
+          "cn_name": "日志来源渠道",
+          "type": "string",
+          "description": "日志来源渠道；native, h5, cashier",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "experiment_ids",
+          "cn_name": "ABTest的experimentIds",
+          "type": "string",
+          "description": "ABTest的experimentIds；exp_12345_groupB",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "space_code",
+          "cn_name": "展位code",
+          "type": "string",
+          "description": "展位code；举例： HK_HOME_PAGE_FEEDS_LIST",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "space_name",
+          "cn_name": "展位名称",
+          "type": "string",
+          "description": "展位名称；举例： 首页feeds",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "delivery_task_id",
+          "cn_name": "投放任务ID",
+          "type": "string",
+          "description": "投放任务ID；外键→dim_hk_asap_mkt_delivery_task_dd\n示例：DELIVERY_PUSH_TASK_20260322_001",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "delivery_task_name",
+          "cn_name": "投放任务名称",
+          "type": "string",
+          "description": "投放任务名称；举例： 12.29-生活频道-北上-$90",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业ID",
+          "type": "string",
+          "description": "行业ID；外键→dim_hk_asap_industry_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业名称",
+          "type": "string",
+          "description": "行业名称；数字生活_积分, 数字金融_自营金融等",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "content_id",
+          "cn_name": "投放内容ID",
+          "type": "string",
+          "description": "投放内容ID；举例：sgprodsg_maga_hktraffic_static_content...",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "title",
+          "cn_name": "投放内容标题",
+          "type": "string",
+          "description": "投放内容标题；举例：流失電訊用戶首頁卡片",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "content_type",
+          "cn_name": "投放内容类型",
+          "type": "string",
+          "description": "投放内容类型；STATIC_CONTENT, POINT_TASK, BENEFIT, SALE_BENEFIT, EXCHANGE, BRAND, TICKET, MINI_APP, SIM",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "traffic_type",
+          "cn_name": "流量类型",
+          "type": "string",
+          "description": "流量类型；NON_COMMERCIAL_COMPETITIVE(竞争流量), COMMERCIAL(商业化流量), NON_COMMERCIAL_BUDGET(预算流量)",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "slot_id",
+          "cn_name": "坑位ID",
+          "type": "int",
+          "description": "坑位ID；1, 2, 3, 4, 5, 6, 7, 8",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "is_public",
+          "cn_name": "是否公域展位",
+          "type": "tinyint",
+          "description": "是否公域展位；1（公域）/ 0（非公域）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "delivery_task_status",
+          "cn_name": "投放任务状态",
+          "type": "string",
+          "description": "投放任务状态；RELEASED",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "时间分区",
+          "type": "string",
+          "description": "时间分区；20260327",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md",
+            "line_start": 22
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    dt,\n    COUNT(*) AS clk_pv,\n    COUNT(DISTINCT user_id) AS clk_uv\nFROM dwd_hk_asap_mkt_log_clk_di\nWHERE dt = '${bizdate}'\nGROUP BY dt",
+        "SELECT \n    delivery_task_id,\n    COUNT(*) AS total_clk,\n    COUNT(DISTINCT user_id) AS clk_uv\nFROM dwd_hk_asap_mkt_log_clk_di\nWHERE dt = '${bizdate}'\nGROUP BY delivery_task_id\nORDER BY total_clk DESC",
+        "SELECT \n    log_type,\n    COUNT(*) AS clk_pv,\n    COUNT(DISTINCT user_id) AS clk_uv\nFROM dwd_hk_asap_mkt_log_clk_di\nWHERE dt = '${bizdate}'\nGROUP BY log_type",
+        "SELECT \n    t.delivery_task_id,\n    SUM(t.expo_pv) AS expo_pv,\n    SUM(t.clk_pv) AS clk_pv,\n    ROUND(SUM(t.clk_pv) / NULLIF(SUM(t.expo_pv), 0), 4) AS ctr\nFROM (\n    SELECT \n        delivery_task_id,\n        0 AS expo_pv,\n        COUNT(*) AS clk_pv\n    FROM dwd_hk_asap_mkt_log_clk_di\n    WHERE dt = '${bizdate}'\n    GROUP BY delivery_task_id\n    \n    UNION ALL\n    \n    SELECT \n        delivery_task_id,\n        COUNT(*) AS expo_pv,\n        0 AS clk_pv\n    FROM dwd_hk_asap_mkt_log_expo_di\n    WHERE dt = '${bizdate}'\n    GROUP BY delivery_task_id\n) t\nGROUP BY t.delivery_task_id"
+      ],
+      "source": {
+        "file": "投放域_04_dwd_hk_asap_mkt_log_clk_di.md"
+      }
+    },
+    {
+      "table_name": "dim_hk_asap_mkt_delivery_task_dd",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "layer": "DIM（维度层）",
+      "description": "投放任务维度表，存储投放任务的配置信息和状态",
+      "partition_field": "dt",
+      "join_keys": [
+        "industry_org_id"
+      ],
+      "columns": [
+        {
+          "name": "delivery_task_id",
+          "cn_name": "投放任务ID",
+          "type": "string",
+          "description": "投放任务ID；DELIVERY_TASK_20260322_001",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "delivery_task_name",
+          "cn_name": "投放任务名称",
+          "type": "string",
+          "description": "投放任务名称；12.29-生活频道-北上-$90",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "delivery_task_status",
+          "cn_name": "投放任务状态",
+          "type": "string",
+          "description": "投放任务状态；RELEASED, PAUSED, FINISHED",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "space_id",
+          "cn_name": "展位ID",
+          "type": "string",
+          "description": "展位ID；外键→dim_hk_asap_space_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "space_code",
+          "cn_name": "展位CODE",
+          "type": "string",
+          "description": "展位CODE；HK_HOME_PAGE_FEEDS_LIST",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "space_name",
+          "cn_name": "展位名称",
+          "type": "string",
+          "description": "展位名称；首页feeds",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业ID",
+          "type": "string",
+          "description": "行业ID；外键→dim_hk_asap_industry_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业名称",
+          "type": "string",
+          "description": "行业名称；数字生活_积分, 数字金融_自营金融",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "traffic_type",
+          "cn_name": "流量类型",
+          "type": "string",
+          "description": "流量类型；NON_COMMERCIAL_COMPETITIVE, COMMERCIAL, NON_COMMERCIAL_BUDGET",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "is_public",
+          "cn_name": "是否公域展位",
+          "type": "tinyint",
+          "description": "是否公域展位；1（公域）/ 0（非公域）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "start_time",
+          "cn_name": "投放开始时间",
+          "type": "string",
+          "description": "投放开始时间；2026-03-22 00:00:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "end_time",
+          "cn_name": "投放结束时间",
+          "type": "string",
+          "description": "投放结束时间；2026-04-22 23:59:59",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "gmt_create",
+          "cn_name": "创建时间",
+          "type": "string",
+          "description": "创建时间；2026-03-20 10:00:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "gmt_modified",
+          "cn_name": "修改时间",
+          "type": "string",
+          "description": "修改时间；2026-03-21 15:30:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境标识",
+          "type": "string",
+          "description": "环境标识；R: Released（线上）/ P: Pre（预发）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "日期分区",
+          "type": "string",
+          "description": "日期分区；20260322",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md",
+            "line_start": 21
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    delivery_task_id,\n    delivery_task_name,\n    space_name,\n    industry_org_name,\n    start_time,\n    end_time\nFROM dim_hk_asap_mkt_delivery_task_dd\nWHERE dt = '${bizdate}'\n  AND delivery_task_status = 'RELEASED'\n  AND start_time <= NOW()\n  AND end_time >= NOW()\n  AND environment = 'R'\nORDER BY start_time DESC",
+        "SELECT \n    industry_org_name,\n    COUNT(*) AS task_cnt\nFROM dim_hk_asap_mkt_delivery_task_dd\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY industry_org_name\nORDER BY task_cnt DESC",
+        "SELECT \n    delivery_task_id,\n    delivery_task_name,\n    delivery_task_status,\n    traffic_type,\n    start_time,\n    end_time\nFROM dim_hk_asap_mkt_delivery_task_dd\nWHERE dt = '${bizdate}'\n  AND space_name = '首页feeds'\n  AND environment = 'R'\nORDER BY gmt_create DESC"
+      ],
+      "source": {
+        "file": "投放域_05_dim_hk_asap_mkt_delivery_task_dd.md"
+      }
+    },
+    {
+      "table_name": "dim_hk_asap_space_info_dd",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "layer": "DIM（维度层）",
+      "description": "展位信息维度表，存储展位的配置信息和属性",
+      "partition_field": "dt",
+      "join_keys": [
+        "industry_org_id"
+      ],
+      "columns": [
+        {
+          "name": "space_id",
+          "cn_name": "展位ID",
+          "type": "string",
+          "description": "展位ID；SPACE_001",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "space_code",
+          "cn_name": "展位CODE",
+          "type": "string",
+          "description": "展位CODE；HK_HOME_PAGE_FEEDS_LIST",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "space_name",
+          "cn_name": "展位名称",
+          "type": "string",
+          "description": "展位名称；首页feeds, 首页Banner样式A展位",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "space_status",
+          "cn_name": "展位状态",
+          "type": "string",
+          "description": "展位状态；ONLINE, OFFLINE",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业ID",
+          "type": "string",
+          "description": "行业ID；外键→dim_hk_asap_industry_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业名称",
+          "type": "string",
+          "description": "行业名称；数字生活_积分, 数字金融_自营金融",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "is_public",
+          "cn_name": "是否公域展位",
+          "type": "tinyint",
+          "description": "是否公域展位；1（公域）/ 0（非公域）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "space_type",
+          "cn_name": "展位类型",
+          "type": "string",
+          "description": "展位类型；BANNER, FEEDS, CORNER, CARD",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "gmt_create",
+          "cn_name": "创建时间",
+          "type": "string",
+          "description": "创建时间；2026-01-15 10:00:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "gmt_modified",
+          "cn_name": "修改时间",
+          "type": "string",
+          "description": "修改时间；2026-03-20 15:30:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境标识",
+          "type": "string",
+          "description": "环境标识；R: Released（线上）/ P: Pre（预发）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "日期分区",
+          "type": "string",
+          "description": "日期分区；20260322",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_06_dim_hk_asap_space_info_dd.md",
+            "line_start": 20
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    space_id,\n    space_code,\n    space_name,\n    industry_org_name,\n    is_public\nFROM dim_hk_asap_space_info_dd\nWHERE dt = '${bizdate}'\n  AND space_status = 'ONLINE'\n  AND environment = 'R'\nORDER BY space_name",
+        "SELECT \n    industry_org_name,\n    COUNT(*) AS space_cnt\nFROM dim_hk_asap_space_info_dd\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY industry_org_name\nORDER BY space_cnt DESC",
+        "SELECT \n    space_id,\n    space_code,\n    space_name,\n    industry_org_name\nFROM dim_hk_asap_space_info_dd\nWHERE dt = '${bizdate}'\n  AND is_public = 1\n  AND space_status = 'ONLINE'\n  AND environment = 'R'\nORDER BY industry_org_name, space_name"
+      ],
+      "source": {
+        "file": "投放域_06_dim_hk_asap_space_info_dd.md"
+      }
+    },
+    {
+      "table_name": "dim_hk_asap_content_dd",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.dim_hk_asap_content_dd",
+      "layer": "DIM（维度层）",
+      "description": "内容维度表，存储投放内容的配置信息和属性",
+      "partition_field": "dt",
+      "join_keys": [],
+      "columns": [
+        {
+          "name": "content_id",
+          "cn_name": "投放内容ID",
+          "type": "string",
+          "description": "投放内容ID；sgprodsg_maga_hktraffic_static_content...",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "title",
+          "cn_name": "投放内容标题",
+          "type": "string",
+          "description": "投放内容标题；流失電訊用戶首頁卡片",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "content_type",
+          "cn_name": "内容类型",
+          "type": "string",
+          "description": "内容类型；STATIC_CONTENT, POINT_TASK, BENEFIT, SALE_BENEFIT, EXCHANGE, BRAND, TICKET, MINI_APP, SIM",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "content_status",
+          "cn_name": "内容状态",
+          "type": "string",
+          "description": "内容状态；ONLINE, OFFLINE",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "content_url",
+          "cn_name": "内容链接",
+          "type": "string",
+          "description": "内容链接；https://example.com/campaign",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "gmt_create",
+          "cn_name": "创建时间",
+          "type": "string",
+          "description": "创建时间；2026-03-20 10:00:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "gmt_modified",
+          "cn_name": "修改时间",
+          "type": "string",
+          "description": "修改时间；2026-03-21 15:30:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境标识",
+          "type": "string",
+          "description": "环境标识；R: Released（线上）/ P: Pre（预发）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "日期分区",
+          "type": "string",
+          "description": "日期分区；20260322",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_07_dim_hk_asap_content_dd.md",
+            "line_start": 19
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    content_id,\n    title,\n    content_type,\n    gmt_create\nFROM dim_hk_asap_content_dd\nWHERE dt = '${bizdate}'\n  AND content_status = 'ONLINE'\n  AND environment = 'R'\nORDER BY gmt_create DESC",
+        "SELECT \n    content_type,\n    COUNT(*) AS content_cnt\nFROM dim_hk_asap_content_dd\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY content_type\nORDER BY content_cnt DESC",
+        "SELECT \n    content_id,\n    title,\n    content_url,\n    gmt_create\nFROM dim_hk_asap_content_dd\nWHERE dt = '${bizdate}'\n  AND content_type = 'BENEFIT'\n  AND content_status = 'ONLINE'\n  AND environment = 'R'\nORDER BY gmt_create DESC\nLIMIT 10"
+      ],
+      "source": {
+        "file": "投放域_07_dim_hk_asap_content_dd.md"
+      }
+    },
+    {
+      "table_name": "dim_hk_asap_industry_info_dd",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.dim_hk_asap_industry_info_dd",
+      "layer": "DIM（维度层）",
+      "description": "行业信息维度表，存储行业组织架构和分类信息",
+      "partition_field": "dt",
+      "join_keys": [],
+      "columns": [
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业ID",
+          "type": "string",
+          "description": "行业ID；INDUSTRY_ORG_001",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业名称",
+          "type": "string",
+          "description": "行业名称；数字生活_积分, 数字金融_自营金融, 数字支付_交通",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "parent_industry_org_id",
+          "cn_name": "父级行业ID",
+          "type": "string",
+          "description": "父级行业ID；用于构建行业层级",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "industry_level",
+          "cn_name": "行业层级",
+          "type": "int",
+          "description": "行业层级；1, 2, 3",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "industry_status",
+          "cn_name": "行业状态",
+          "type": "string",
+          "description": "行业状态；ACTIVE, INACTIVE",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "gmt_create",
+          "cn_name": "创建时间",
+          "type": "string",
+          "description": "创建时间；2026-01-01 00:00:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "gmt_modified",
+          "cn_name": "修改时间",
+          "type": "string",
+          "description": "修改时间；2026-03-20 15:30:00",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境标识",
+          "type": "string",
+          "description": "环境标识；R: Released（线上）/ P: Pre（预发）",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "日期分区",
+          "type": "string",
+          "description": "日期分区；20260322",
+          "value_hints": [],
+          "source": {
+            "file": "投放域_08_dim_hk_asap_industry_info_dd.md",
+            "line_start": 19
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    industry_org_id,\n    industry_org_name,\n    industry_level\nFROM dim_hk_asap_industry_info_dd\nWHERE dt = '${bizdate}'\n  AND industry_status = 'ACTIVE'\n  AND environment = 'R'\nORDER BY industry_org_name",
+        "SELECT \n    industry_org_id,\n    industry_org_name\nFROM dim_hk_asap_industry_info_dd\nWHERE dt = '${bizdate}'\n  AND industry_level = 1\n  AND industry_status = 'ACTIVE'\n  AND environment = 'R'\nORDER BY industry_org_name",
+        "SELECT \n    industry_org_id,\n    industry_org_name,\n    industry_level\nFROM dim_hk_asap_industry_info_dd\nWHERE dt = '${bizdate}'\n  AND parent_industry_org_id = '${parent_industry_org_id}'\n  AND industry_status = 'ACTIVE'\n  AND environment = 'R'\nORDER BY industry_org_name"
+      ],
+      "source": {
+        "file": "投放域_08_dim_hk_asap_industry_info_dd.md"
+      }
+    }
+  ],
+  "business_terms": [
+    {
+      "term": "竞争流量",
+      "sql": "WHERE traffic_type = 'NON_COMMERCIAL_COMPETITIVE'",
+      "field": "",
+      "mapped_value": "WHERE traffic_type = 'NON_COMMERCIAL_COMPETITIVE'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "商业化流量",
+      "sql": "WHERE traffic_type = 'COMMERCIAL'",
+      "field": "",
+      "mapped_value": "WHERE traffic_type = 'COMMERCIAL'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "预算流量",
+      "sql": "WHERE traffic_type = 'NON_COMMERCIAL_BUDGET'",
+      "field": "",
+      "mapped_value": "WHERE traffic_type = 'NON_COMMERCIAL_BUDGET'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "公域展位",
+      "sql": "WHERE is_public = 1",
+      "field": "",
+      "mapped_value": "WHERE is_public = 1",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "非公域展位",
+      "sql": "WHERE is_public = 0",
+      "field": "",
+      "mapped_value": "WHERE is_public = 0",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "N号坑位 / 第N个位置",
+      "sql": "WHERE slot_id = N",
+      "field": "",
+      "mapped_value": "WHERE slot_id = N",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "大盘整体（线上数据）",
+      "sql": "无需 space 过滤，必须加 AND environment = 'R'",
+      "field": "",
+      "mapped_value": "无需 space 过滤，必须加 AND environment = 'R'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 125
+      }
+    },
+    {
+      "term": "今天 / 昨天",
+      "sql": "dt = '${bizdate}'",
+      "field": "",
+      "mapped_value": "dt = '${bizdate}'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 170
+      }
+    },
+    {
+      "term": "最近7天",
+      "sql": "dt >= DATE_FORMAT(DATEADD('${bizdate}', -6, 'dd'), 'yyyyMMdd') AND dt <= '${bizdate}'",
+      "field": "",
+      "mapped_value": "dt >= DATE_FORMAT(DATEADD('${bizdate}', -6, 'dd'), 'yyyyMMdd') AND dt <= '${bizdate}'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 170
+      }
+    },
+    {
+      "term": "过去30天",
+      "sql": "dt >= DATE_FORMAT(DATEADD('${bizdate}', -29, 'dd'), 'yyyyMMdd') AND dt <= '${bizdate}'",
+      "field": "",
+      "mapped_value": "dt >= DATE_FORMAT(DATEADD('${bizdate}', -29, 'dd'), 'yyyyMMdd') AND dt <= '${bizdate}'",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 170
+      }
+    },
+    {
+      "term": "上周",
+      "sql": "dt BETWEEN 上周一 AND 上周日",
+      "field": "",
+      "mapped_value": "dt BETWEEN 上周一 AND 上周日",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 170
+      }
+    },
+    {
+      "term": "周同比",
+      "sql": "dt IN ('${bizdate}', DATE_FORMAT(DATEADD('${bizdate}', -7, 'dd'), 'yyyyMMdd'))",
+      "field": "",
+      "mapped_value": "dt IN ('${bizdate}', DATE_FORMAT(DATEADD('${bizdate}', -7, 'dd'), 'yyyyMMdd'))",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 170
+      }
+    }
+  ],
+  "concepts": [
+    {
+      "concept": "展位",
+      "en_name": "Space",
+      "description": "投放位置，如首页Banner、弹窗、列表卡片等",
+      "related_table": "anthk_sg.dim_hk_asap_space_info_dd",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 22
+      }
+    },
+    {
+      "concept": "内容",
+      "en_name": "Content",
+      "description": "投放物料，如图片、活动、权益、商品等",
+      "related_table": "anthk_sg.dim_hk_asap_content_dd",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 22
+      }
+    },
+    {
+      "concept": "任务",
+      "en_name": "Task",
+      "description": "投放任务，控制投放时间、范围、内容等",
+      "related_table": "anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 22
+      }
+    },
+    {
+      "concept": "行业",
+      "en_name": "Industry",
+      "description": "业务分类维度，用于组织投放资源",
+      "related_table": "anthk_sg.dim_hk_asap_industry_info_dd",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 22
+      }
+    },
+    {
+      "concept": "坑位",
+      "en_name": "slot_id",
+      "description": "内容曝光的位置编号",
+      "related_table": "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 22
+      }
+    }
+  ],
+  "table_selection_rules": [
+    {
+      "scenario": "查曝光PV/点击PV/UV/CTR/日均/趋势/同比",
+      "table": "**DWS** anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "reason": "已按天汇总，性能最优",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 70
+      }
+    },
+    {
+      "scenario": "按展位/任务/行业/内容/流量类型/坑位分组",
+      "table": "**DWS** anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "reason": "包含所有聚合维度",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 70
+      }
+    },
+    {
+      "scenario": "查展位/任务/内容/行业的属性、名称",
+      "table": "**DIM** 对应维度表",
+      "reason": "维度信息在 DIM 层",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 70
+      }
+    },
+    {
+      "scenario": "需要 experiment_ids、utdid",
+      "table": "**DWD** anthk_sg.dwd_hk_asap_mkt_log_expo/clk_di",
+      "reason": "仅明细层有",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 70
+      }
+    },
+    {
+      "scenario": "需要事件级（每次曝光/点击）明细",
+      "table": "**DWD** anthk_sg.dwd_hk_asap_mkt_log_expo/clk_di",
+      "reason": "仅明细层有",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 70
+      }
+    },
+    {
+      "scenario": "user_id + experiment_id 联合分析",
+      "table": "**DWD** anthk_sg.dwd_hk_asap_mkt_log_expo/clk_di",
+      "reason": "仅明细层有",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 70
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "name": "曝光PV",
+      "expression": "SUM(expo_pv_1d)",
+      "description": "按天汇总的曝光次数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "点击PV",
+      "expression": "SUM(clk_pv_1d)",
+      "description": "按天汇总的点击次数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "曝光UV",
+      "expression": "COUNT(DISTINCT CASE WHEN expo_pv_1d > 0 THEN user_id END)",
+      "description": "去重曝光用户数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "点击UV",
+      "expression": "COUNT(DISTINCT CASE WHEN clk_pv_1d > 0 THEN user_id END)",
+      "description": "去重点击用户数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "PV CTR",
+      "expression": "SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0)",
+      "description": "点击PV / 曝光PV，保留4位小数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "UV CTR",
+      "expression": "点击UV / NULLIF(曝光UV, 0)",
+      "description": "点击UV / 曝光UV",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "日均PV CTR",
+      "expression": "SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0) / COUNT(DISTINCT dt)",
+      "description": "多日区间内日均点击率",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "人均曝光",
+      "expression": "SUM(expo_pv_1d) / NULLIF(曝光UV, 0)",
+      "description": "平均每人曝光次数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "展位数",
+      "expression": "COUNT(DISTINCT space_id)",
+      "description": "有效展位数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "任务数",
+      "expression": "COUNT(DISTINCT delivery_task_id)",
+      "description": "投放任务数",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 94
+      }
+    },
+    {
+      "name": "曝光PV",
+      "expression": "COUNT(*) FROM dwd_hk_asap_mkt_log_expo_di",
+      "description": "",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 111
+      }
+    },
+    {
+      "name": "点击PV",
+      "expression": "COUNT(*) FROM dwd_hk_asap_mkt_log_clk_di",
+      "description": "",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 111
+      }
+    },
+    {
+      "name": "曝光UV",
+      "expression": "COUNT(DISTINCT user_id) FROM dwd_hk_asap_mkt_log_expo_di",
+      "description": "",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 111
+      }
+    },
+    {
+      "name": "点击UV",
+      "expression": "COUNT(DISTINCT user_id) FROM dwd_hk_asap_mkt_log_clk_di",
+      "description": "",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 111
+      }
+    },
+    {
+      "name": "PV CTR",
+      "expression": "点击PV / NULLIF(曝光PV, 0)",
+      "description": "",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 111
+      }
+    },
+    {
+      "name": "UV CTR",
+      "expression": "点击UV / NULLIF(曝光UV, 0)",
+      "description": "",
+      "source": {
+        "file": "投放域_Schema_总览（NL2SQL）.md",
+        "line_start": 111
+      }
+    }
+  ],
+  "examples": [
+    "SELECT  dt\n        ,space_code\n        ,SUM(expo_pv_1d)                                       AS expo_pv\n        ,SUM(clk_pv_1d)                                        AS clk_pv\n        ,ROUND(SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0), 4) AS pv_ctr\nFROM    anthk_sg.dws_hk_asap_mkt_distribute_index_1d\nWHERE   dt = '${bizdate}'\nAND     environment = 'R'\nAND     space_code = 'HK_HOME_PAGE_FEEDS_LIST'\nGROUP BY dt\n        ,space_code;",
+    "SELECT  industry_org_name\n        ,SUM(expo_pv_1d)                                          AS expo_pv\n        ,ROUND(SUM(expo_pv_1d) / SUM(SUM(expo_pv_1d)) OVER (), 4) AS pv_ratio\nFROM    anthk_sg.dws_hk_asap_mkt_distribute_index_1d\nWHERE   dt = '${bizdate}'\nAND     environment = 'R'\nGROUP BY industry_org_name\nORDER BY pv_ratio DESC;",
+    "SELECT  space_code\n        ,SUM(CASE\n                    WHEN dt = '${bizdate}' THEN expo_pv_1d\n                    ELSE 0\n             END) AS today_expo_pv\n        ,SUM(CASE\n                    WHEN dt = TO_CHAR(DATEADD(TO_DATE('${bizdate}', 'yyyyMMdd'), -7, 'dd'), 'yyyyMMdd') THEN expo_pv_1d\n                    ELSE 0\n             END) AS last_week_expo_pv\nFROM    anthk_sg.dws_hk_asap_mkt_distribute_index_1d\nWHERE   dt IN ('${bizdate}', TO_CHAR(DATEADD(TO_DATE('${bizdate}', 'yyyyMMdd'), -7, 'dd'), 'yyyyMMdd'))\nAND     environment = 'R'\nGROUP BY space_code;",
+    "SELECT  s.space_name\n        ,s.space_status\n        ,i.industry_org_name\n        ,COUNT(*)                  AS expo_pv\n        ,COUNT(DISTINCT e.user_id) AS expo_uv\nFROM    (\n            SELECT  *\n            FROM    anthk_sg.dwd_hk_asap_mkt_log_expo_di\n            WHERE   dt = '${bizdate}'\n        ) e\nJOIN    (\n            SELECT  *\n            FROM    anthk_sg.dim_hk_asap_space_info_dd\n            WHERE   dt = '${bizdate}'\n        ) s\nON      e.space_id = s.space_id\nJOIN    (\n            SELECT  *\n            FROM    anthk_sg.dim_hk_asap_industry_info_dd\n            WHERE   dt = '${bizdate}'\n        ) i\nON      e.industry_org_id = i.industry_org_id\nGROUP BY s.space_name\n        ,s.space_status\n        ,i.industry_org_name",
+    "SELECT  space_code\n        ,SUM(expo_pv_1d)                                       AS expo_pv\n        ,SUM(clk_pv_1d)                                        AS clk_pv\n        ,ROUND(SUM(clk_pv_1d) / NULLIF(SUM(expo_pv_1d), 0), 4) AS pv_ctr\nFROM    anthk_sg.dws_hk_asap_mkt_distribute_index_1d\nWHERE   dt = '${bizdate}'\nAND     environment = 'R'\nGROUP BY space_code\nORDER BY pv_ctr DESC"
+  ],
+  "field_index": {
+    "dt": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "antsg_anthk_sg.dim_hk_asap_content_dd",
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "space_id": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd"
+    ],
+    "space_code": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd"
+    ],
+    "space_name": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd"
+    ],
+    "delivery_task_id": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd"
+    ],
+    "delivery_task_name": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd"
+    ],
+    "industry_org_id": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "industry_org_name": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "content_id": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_content_dd"
+    ],
+    "title": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_content_dd"
+    ],
+    "content_type": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_content_dd"
+    ],
+    "traffic_type": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd"
+    ],
+    "user_id": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "slot_id": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "is_public": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd"
+    ],
+    "delivery_task_status": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd"
+    ],
+    "environment": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d",
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "antsg_anthk_sg.dim_hk_asap_content_dd",
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "expo_pv_1d": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d"
+    ],
+    "clk_pv_1d": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d"
+    ],
+    "expo_uv（计算指标）": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d"
+    ],
+    "clk_uv（计算指标）": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d"
+    ],
+    "pv_ctr（计算指标）": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d"
+    ],
+    "uv_ctr（计算指标）": [
+      "anthk_sg.dws_hk_asap_mkt_distribute_index_1d"
+    ],
+    "loged_time": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "log_time": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "alipay_product_id": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "alipay_product_version": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "tcid": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "session_id": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "behaviorid": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "spm": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "spm_a": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "spm_b": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "spm_c": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "spm_d": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "utdid": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "device_model": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "os_version": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "network": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "language": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "ip": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "ip_country": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "ip_province": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "ip_city": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "log_type": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "experiment_ids": [
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_expo_di",
+      "antsg_anthk_sg.dwd_hk_asap_mkt_log_clk_di"
+    ],
+    "start_time": [
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd"
+    ],
+    "end_time": [
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd"
+    ],
+    "gmt_create": [
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "antsg_anthk_sg.dim_hk_asap_content_dd",
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "gmt_modified": [
+      "antsg_anthk_sg.dim_hk_asap_mkt_delivery_task_dd",
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd",
+      "antsg_anthk_sg.dim_hk_asap_content_dd",
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "space_status": [
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd"
+    ],
+    "space_type": [
+      "antsg_anthk_sg.dim_hk_asap_space_info_dd"
+    ],
+    "content_status": [
+      "antsg_anthk_sg.dim_hk_asap_content_dd"
+    ],
+    "content_url": [
+      "antsg_anthk_sg.dim_hk_asap_content_dd"
+    ],
+    "parent_industry_org_id": [
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "industry_level": [
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ],
+    "industry_status": [
+      "antsg_anthk_sg.dim_hk_asap_industry_info_dd"
+    ]
+  }
+}

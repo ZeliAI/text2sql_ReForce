@@ -12,15 +12,58 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ASSET_DIR = REPO_ROOT / "data" / "profile_eval"
 
 
+QUESTION_FIELD_HINTS = [
+    ("沉默期", ["life_cycle"]),
+    ("衰退期", ["life_cycle"]),
+    ("成长期", ["life_cycle"]),
+    ("新手期", ["life_cycle"]),
+    ("生命周期", ["life_cycle"]),
+    ("回流潜力", ["reactivation_level"]),
+    ("提频潜力", ["freq_uplift_level"]),
+    ("沉默风险", ["silence_risk_level"]),
+    ("积分偏好", ["pts_prefer_level"]),
+    ("红包偏好", ["rp_prefer_level"]),
+    ("权益偏好", ["pts_prefer_level", "ec_prefer_level", "mev_prefer_level", "rp_prefer_level", "if_prefer_level", "faid_prefer_level"]),
+    ("eM+高营销敏感", ["em_marketing_sensitivity"]),
+    ("营销敏感", ["em_marketing_sensitivity"]),
+    ("eM+高潜", ["em_potential_segment"]),
+    ("基金高潜", ["fund_potential_segment"]),
+    ("年龄", ["user_age", "user_age_group"]),
+    ("性别", ["user_gender"]),
+    ("男女", ["user_gender"]),
+    ("支付高频", ["trx_freq_level_r30d", "pay_level_r30d"]),
+    ("高频高金额", ["trx_freq_level_r30d", "trx_amt_level_r30d", "pay_level_r30d"]),
+    ("高金额", ["trx_amt_level_r30d", "pay_level_r30d"]),
+    ("交易笔数", ["transact_num_r30d", "transact_num_r7d"]),
+    ("交易次数", ["transact_num_r30d", "transact_num_r7d"]),
+    ("交易金额", ["transact_amt_r30d", "transact_amt_r7d"]),
+    ("充值金额", ["topup_amt_r30d", "topup_amt_r7d"]),
+    ("充值笔数", ["topup_cnt_r30d", "topup_cnt_r7d"]),
+    ("登录频率", ["login_cnt_r30d", "user_login_frequency"]),
+    ("登录次数", ["login_cnt_r30d", "login_cnt_r7d"]),
+    ("push高频", ["user_push_activity_level", "push_click_cnt_r30d", "user_push_cilck_pv_r30d"]),
+    ("push点击", ["user_push_cilck_pv_r30d", "push_click_cnt_r30d", "is_push_click_user"]),
+    ("push触达", ["user_push_exposure_pv_r30d"]),
+    ("领券", ["send_cnt_r30d"]),
+    ("核销", ["use_cnt_r30d"]),
+    ("绑卡", ["effective_bind_card_cnt", "bind_card_cnt"]),
+]
+
+
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def extract_sql(text: str) -> str:
+    text = text.strip()
     matches = re.findall(r"```sql\s*(.*?)```", text, flags=re.IGNORECASE | re.DOTALL)
     if matches:
         return matches[-1].strip().rstrip(";") + ";"
-    sql_match = re.search(r"(?is)\b(?:with|select)\b.*?(?:;|$)", text.strip())
+    if re.match(r"(?is)^sql\s*\n", text):
+        text = re.sub(r"(?is)^sql\s*\n", "", text, count=1).strip()
+    if text.startswith("--") and "目前用户查询无法满足" in text:
+        return text.rstrip(";") + ";"
+    sql_match = re.search(r"(?is)\b(?:with|select)\b.*?(?:;|$)", text)
     if sql_match:
         return sql_match.group(0).strip().rstrip(";") + ";"
     return ""
@@ -61,14 +104,22 @@ def score_table(question: str, table: dict[str, Any], business_terms: list[dict[
     table_fields = {column["name"] for column in table["columns"]}
     for term in business_terms:
         normalized_term = term["term"].replace("用户", "").replace("（", "").replace("）", "")
-        if term["term"] in question or (normalized_term and normalized_term in question):
+        term_pieces = [piece for piece in re.split(r"[/（）()、,， ]+", term["term"]) if piece]
+        if (
+            term["term"] in question
+            or (normalized_term and normalized_term in question)
+            or any(piece in question for piece in term_pieces)
+        ):
             refs = set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", term["sql"]))
             if refs & table_fields:
                 score += 5
+    for phrase, fields in QUESTION_FIELD_HINTS:
+        if phrase in question and set(fields) & table_fields:
+            score += 6
     return score
 
 
-def select_context(question: str, registry: dict[str, Any], max_columns_per_table: int = 80) -> dict[str, Any]:
+def select_context(question: str, registry: dict[str, Any], max_columns_per_table: int = 140) -> dict[str, Any]:
     terms = [
         term
         for term in registry["business_terms"]
@@ -78,6 +129,18 @@ def select_context(question: str, registry: dict[str, Any], max_columns_per_tabl
     ]
     table_scores = [(score_table(question, table, registry["business_terms"]), table) for table in registry["tables"]]
     selected_tables = [table for score, table in sorted(table_scores, key=lambda item: item[0], reverse=True) if score > 0]
+    selected_names = {table["full_name"] for table in selected_tables}
+    for phrase, fields in QUESTION_FIELD_HINTS:
+        if phrase not in question:
+            continue
+        for field in fields:
+            for full_name in registry.get("field_index", {}).get(field, []):
+                if full_name in selected_names:
+                    continue
+                table = next((item for item in registry["tables"] if item["full_name"] == full_name), None)
+                if table:
+                    selected_tables.append(table)
+                    selected_names.add(full_name)
     if not selected_tables:
         selected_tables = registry["tables"]
 
@@ -142,7 +205,7 @@ def build_schema_summary_prompt(question: str, context_text: str) -> str:
 请严格输出以下小节：
 【问题意图】
 【推荐表】
-【推荐字段】
+【字段归属】
 【业务词映射】
 【JOIN 与分区】
 【聚合与结果形态】
@@ -150,9 +213,18 @@ def build_schema_summary_prompt(question: str, context_text: str) -> str:
 
 要求：
 1. 只使用给定画像域上下文里的表、字段、枚举和口径。
-2. 优先单表；只有字段跨表时才建议 JOIN。
-3. 所有表都必须考虑 dt 分区。
-4. 如果问题无法被当前 schema 支持，在【风险点】中明确说明“目前用户查询无法满足”。
+2. 必须逐个识别用户问题里的业务概念，并在【字段归属】中写清楚：业务概念 -> 字段 -> 完整表名。
+3. 判断单表 / 多表时，以【字段归属】为准。只要所需字段分布在多张表，就必须推荐 JOIN；不能因为某张表命中多个业务词就误判为单表。
+4. 不允许把字段迁移到错误表。例如 `life_cycle` 只在 base 表，`reactivation_level` 只在 algo 表，`transact_num_r30d` 只在 pay 表，`login_cnt_r30d` 只在 other_action 表。
+5. 必须逐表核对上下文中的完整表名，不能改写库名。特别注意：
+   - base 表是 `antsg_asap.adm_asap_base_user_label_dd`
+   - algo 表是 `anthk_sg.adm_asap_algo_user_label_dd`
+   - pay 表是 `antsg_asap.adm_asap_pay_user_label_dd`
+   - other_action 表是 `antsg_asap.adm_asap_other_action_user_label_dd`
+6. 年龄、性别、生命周期、港漂、注册来源等基础属性来自 base 表；交易金额、交易笔数、支付高频/高金额等交易标签来自 pay 表；偏好、潜客、沉默风险、回流潜力来自 algo 表；登录、push、领券、核销来自 other_action 表。
+7. 所有表都必须考虑 dt 分区。多表时必须说明每张表先过滤 `dt = max_pt('完整表名')`，再用 `user_id + dt` JOIN。
+8. 如果字段存在于其他画像域表，应推荐 JOIN，不要输出“无法满足”。
+9. 只有当所需字段或业务口径在所有给定画像域上下文中都不存在时，才在【风险点】中明确说明“目前用户查询无法满足”。
 
 用户问题：
 {question}
@@ -170,9 +242,17 @@ def build_sql_prompt(question: str, context_text: str, schema_summary: str) -> s
 2. 只能使用画像域上下文里出现的表和字段。
 3. 所有表必须加 dt 分区过滤。当前 P0 默认写法为：dt = max_pt('完整表名')。
 4. 用户数默认使用 COUNT(DISTINCT user_id)。
-5. 优先单表查询；需要 JOIN 时，先在每张表子查询中过滤 dt 和业务条件，再用 user_id + dt JOIN。
-6. 比例计算必须使用 NULLIF 避免除零。
-7. 如果问题无法被当前 schema 支持，请输出：
+5. 严格按照 Schema Summary 的【字段归属】写 SQL。字段在哪张表，就必须从那张表取；不允许把字段写到其他表。
+6. 如果所需字段分布在多张表，必须 JOIN。JOIN 模板必须满足：
+   - 每张物理表写成子查询。
+   - 每个子查询都必须 SELECT `user_id`、`dt` 和本表需要的业务字段。
+   - 每个子查询都必须在 WHERE 中过滤 `dt = max_pt('完整表名')`。
+   - JOIN 条件必须包含 `a.user_id = b.user_id AND a.dt = b.dt`；三表 JOIN 也必须逐段包含 user_id 和 dt。
+7. 单表查询时也必须写 `dt = max_pt('完整表名')`。
+8. 比例计算必须使用 NULLIF 避免除零。
+9. 如果问题问“水平”“差异”“对比”，优先输出可解释的 AVG / SUM / COUNT / ratio 指标，不要只输出一个无法解释的标签。
+10. 如果字段存在于画像域上下文的其他表，必须通过 JOIN 使用，不允许输出“目前用户查询无法满足”。
+11. 只有当所需字段或业务口径在所有给定画像域上下文中都不存在时，才输出：
 ```sql
 -- 目前用户查询无法满足：说明缺少的字段或口径
 ```
@@ -218,9 +298,12 @@ SQL：
 选择原则按优先级排序：
 1. 先排除静态校验 status = fail 的候选，除非所有候选都是 fail。
 2. 优先选择最符合用户问题语义、结果形态和业务口径的候选。
-3. 检查表选择、字段选择、dt 分区、JOIN key、聚合粒度、COUNT DISTINCT、比例分母是否合理。
-4. 如果多个候选都可用，选择 SQL 更简单、更贴合问题的一条。
-5. 如果所有候选都明显不可用，也必须选择相对问题最小的一条，并在理由中说明风险。
+3. 如果候选输出“目前用户查询无法满足”，但 Schema Summary 或画像域上下文里其实存在相关字段，应强烈降权。
+4. 如果候选把字段写到错误表，应强烈降权，即使 SQL 看起来更短。
+5. 多表 SQL 必须优先选择显式 `user_id + dt` JOIN 的候选；只有当所有物理表都已 `max_pt` 过滤且没有更好候选时，才接受只有 `user_id` JOIN 的候选，并在理由中说明风险。
+6. 检查表选择、字段选择、dt 分区、JOIN key、聚合粒度、COUNT DISTINCT、比例分母是否合理。
+7. 如果多个候选都可用，选择 SQL 更简单、更贴合问题的一条。
+8. 如果所有候选都明显不可用，也必须选择相对问题最小的一条，并在理由中说明风险。
 
 请严格输出：
 [selected_candidate]

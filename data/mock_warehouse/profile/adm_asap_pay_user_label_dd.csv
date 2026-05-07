@@ -1,0 +1,4 @@
+user_id,dt,pay_level_r30d,trx_freq_level_r30d,trx_amt_level_r30d,transact_num_r30d,transact_amt_r30d
+U1001,2026-05-06,G1-R30D高频次,高金额,高,高,35,6800.50
+U1002,2026-05-06,G2-R30D中频次,中金额,中,中,8,730.20
+U1003,2026-05-06,G1-R30D高频次,高金额,高,高,28,5100.00

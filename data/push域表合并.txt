@@ -1,0 +1,958 @@
+# push域 Schema 总览
+
+本文档为push域Schema元数据总览，包含域说明、表索引、选表规则、**指标口径**、业务术语映射、通用取数样例。各表字段详情见关联文档。
+
+**原则：SKILL.md只记录域注册信息，完整Schema从本语雀文档按需拉取。**  
+拉取方式：`yuque-mcp skylark_user_doc_detail`，命名空间 `gaespg/tkz7r8`，slug `uqedqi6gs4qycgt9`
+
+---
+
+## 一、域说明
+push域覆盖营销push业务，包含Push消息发送、曝光追踪、点击效果等核心场景。
+
+**业务范围：**
+
+- Push发送效果：发送量、到达量、曝光量、点击量等指标分析
+- Push任务管理：任务创建、生效时间、状态流转等
+- Push文案管理：人工文案、AIGC文案、创意标签等
+- Push渠道区分：机型、环境、业务线等维度分析
+
+---
+
+## 二、核心概念
+| **概念** | **英文** | **说明** | **关联表** |
+| --- | --- | --- | --- |
+| Push任务 | Push Task | push任务，控制投放时间、范围、内容等 | **adm_hk_asap_dwd_push_task_info_dd** (核心DWD宽表，汇总所有任务、文案、业务线、行业组织、AIGC文案等所有信息) |
+| Push文案 | Creative | push文案，包含标题、副标题、URL等 | antsg_nods.ods_imcdp_static_content |
+| Push发送 | Push Send | 消息发送到设备 | anthk_sg.dwd_intl_gloc_hk_push_out_history_750_dd |
+| Push曝光 | Push Exposure | 消息在设备上展示 | anthk_sg.dwd_evt_hk_app_log_exposure_di |
+| Push点击 | Push Click | 用户点击push消息 | anthk_sg.dwd_evt_hk_app_log_clk_di |
+| 业务线 | Business Line | 业务分类维度，用于组织投放资源 | antsg_nods.ods_imcdp_biz_line_org |
+| AIGC文案 | AIGC Creative | 大模型生成的push文案 | ods_imcdp_static_content.extend_info.llmPushTextParam |
+
+
+**重要说明**：push任务、push文案、业务线等信息都汇总在同一个核心DWD宽表 **adm_hk_asap_dwd_push_task_info_dd** 中。业务线是核心的组织分类维度，包含多级结构（一级、二级、三级）以及行业组织信息。
+
+---
+
+## 三、表层级关系
+```plain
+┌──────────────────────────────────────────────────┐
+│               ADS 应用层                             │
+│  adm_hk_asap_push_task_info_fast_ds              │  (快表：T+5分钟延迟)
+│  adm_hk_asap_push_task_info_slow_ds              │  (慢表：T+2小时延迟)
+│  adm_hk_asap_push_close_ds                      │  (关闭任务)
+│  adm_asap_push_aigc_task_running_dd             │  (AIGC任务running全量，属DWD层)
+│  adm_asap_push_aigc_trfc_analysis_di           │  (AIGC流量分析)
+│  （按天分析，发送/曝光/点击等指标）                │
+└──────────────────────────────────────────────────┘
+                          ▲（聚合自）
+┌──────────────────────────────────────────────────┐
+│               DWS 汇总层                           │
+│  adm_hk_asap_dwd_push_send_expo_clk_detail_fast_di  │  (T+5min，用户级汇总)
+│  adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di  │  (T+2hr，用户级汇总)
+│  （按天汇总每个用户每个任务的曝光和点击指标）          │
+└──────────────────────────────────────────────────┘
+                          ▲（聚合自）
+┌──────────────────────────────────────────────────┐
+│               DWD 明细层                           │
+│  adm_hk_asap_dwd_push_task_info_dd               │  核心宽表
+│  adm_hk_asap_push_task_info_detail_di            │  发送日志明细
+│  adm_hk_asap_dwd_push_log_expo_di              │  曝光日志明细（小时分区）
+│  adm_hk_asap_dwd_push_log_clk_di               │  点击日志明细（小时分区）
+└──────────────────────────────────────────────────┘
+                          ▲（关联）
+┌──────────────────────────────────────────────────┐
+│              ODS/I 源表层                         │
+│  antsg_nods.ods_imcdp_delivery_push_task         │ push任务表
+│  antsg_nods.ods_imcdp_static_content            │ push文案静态内容表
+│  antsg_nods.ods_imcdp_biz_line_org            │ 业务线配置表
+│  anthk_sg.dwd_intl_gloc_hk_push_out_history_750_dd    │ push发送历史表
+│  anthk_sg.dwd_evt_hk_app_log_exposure_di       │ app曝光日志表
+│  anthk_sg.dwd_evt_hk_app_log_clk_di           │ app点击日志表
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+## 四、表索引
+| 表名 | 层级 | 主键 | 核心外键 | 说明 | 详情文档 |
+| --- | --- | --- | --- | --- | --- |
+| **adm_hk_asap_dwd_push_task_info_dd** | DWD | delivery_push_task_id, creative_id | delivery_push_task_id, creative_id | **push任务明细宽表（核心表）** - 汇总push任务、文案、业务线、行业组织、AIGC文案等所有信息 | [查看](https://yuque.antfin.com/gaespg/tkz7r8/dfdtuqh5yhnqb1ko) |
+| adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di | DWS | - | delivery_push_task_id, creative_id，user_id | 香港用户-ASAP-push消息-push发送-曝光-点击明细表-慢表 | [查看](https://yuque.antfin.com/gaespg/tkz7r8/gvduxdytx6etx82q) |
+| adm_asap_push_aigc_task_running_dd | DWD | delivery_push_task_id, creative_id | delivery_push_task_id | AIGC任务running全量表 | [查看](https://yuque.antfin.com/gaespg/tkz7r8/ng9h4png7aa4l35i) |
+| adm_hk_asap_push_task_info_detail_di | DWD | - | delivery_push_task_id | push发送日志明细表 | [查看](https://yuque.antfin.com/gaespg/tkz7r8/hhe0mz2dfyu3ufrm) |
+| adm_hk_asap_dwd_push_log_expo_di | DWD | - | delivery_push_task_id | push曝光日志明细表（小时分区） | [查看](https://yuque.antfin.com/gaespg/tkz7r8/aytz5keagrx1pzc5) |
+| adm_hk_asap_dwd_push_log_clk_di | DWD | - | delivery_push_task_id | push点击日志明细表（小时分区） | [查看](https://yuque.antfin.com/gaespg/tkz7r8/sxszhqd3hp7q9s1t) |
+
+
+---
+
+## 五、选表规则（NL2SQL核心）
+**核心原则：DWS优先，明细字段才降级DWD。**
+
+| 场景 | 使用表 | 理由 |
+| --- | --- | --- |
+| 查发送量/曝光量/点击量/CTR等聚合指标（任务维度） | **ADS** adm_hk_asap_push_task_info_fast/slow_ds | 已按天汇总，性能最优 |
+| 查push任务详情/文案信息/任务状态/业务线 | **DWD** adm_hk_asap_dwd_push_task_info_dd | 核心宽表，包含所有维度信息；业务线作为关键的组织维度，包含一级、二级、三级等多级结构 |
+| 需要用户级（单个用户）的发送/曝光/点击明细 | **DWS** adm_hk_asap_dwd_push_send_expo_clk_detail_fast/slow_di | 汇总层有用户级数据 |
+| AIGC任务分析（running状态/任务类型） | **DWD** adm_asap_push_aigc_task_running_dd | 专用AIGC任务表 |
+| AIGC流量分析（累计指标/创意效果对比） | **ADS** adm_asap_push_aigc_trfc_analysis_di | 专用AIGC流量表 |
+| 曝光/点击日志明细分析 | **DWD** adm_hk_asap_dwd_push_log_expo_di / log_clk_di | 明细层日志表 |
+
+
+```plain
+判断流程（任务维度）：
+用户需求 
+  → 需要任务详情/文案信息/业务线？
+       是 → 使用 DWD (adm_hk_asap_dwd_push_task_info_dd)
+       否 → AIGC分析？
+             是 → 使用 ADS (adm_asap_push_aigc_trfc_analysis_di)
+             否 → 指标聚合？
+                   是 → 需要用户级明细？
+                         是 → 使用 DWS (adm_hk_asap_dwd_push_send_expo_clk_detail_fast/slow_di)
+                         否 → 使用 ADS (adm_hk_asap_push_task_info_fast/slow_ds)
+```
+
+---
+
+## 六、指标口径（NL2SQL核心）
+### 6.1 ADS口径（优先使用）
+> 基于 `adm_hk_asap_push_task_info_fast/slow_ds`，查询时必须加 `AND environment = 'R'`  
+快表：T+5分钟延迟  
+慢表：T+2小时延迟
+>
+
+| 指标名称 | ADS计算公式 | 说明 |
+| --- | --- | --- |
+| 发送量PV | SUM(send_cnt_pv) | push消息发送总数 |
+| 发送成功量PV | SUM(send_success_cnt_pv) | push成功发送到设备数 |
+| 曝光量PV | SUM(exposure_pv) | push消息在设备上的展示次数 |
+| 点击量PV | SUM(click_pv) | 用户点击push消息次数 |
+| 发送量UV | SUM(send_cnt_uv) | 发送给不同用户的数量 |
+| 曝光量UV | SUM(exposure_uv) | 不同用户看到push消息的数量 |
+| 点击量UV | SUM(click_uv) | 不同用户点击push消息的数量 |
+| PV CTR | SUM(click_pv) / NULLIF(SUM(exposure_pv), 0) | 点击PV / 曝光PV，保留4位小数 |
+| UV CTR | SUM(click_uv) / NULLIF(SUM(exposure_uv), 0) | 点击UV / 曝光UV，保留4位小数 |
+
+
+### 6.2 DWD口径（降级使用，任务维度）
+> 基于 `adm_hk_asap_dwd_push_task_info_dd`（核心宽表）
+>
+
+| 指标名称 | DWD计算公式 | 说明 |
+| --- | --- | --- |
+| 总任务数 | COUNT(DISTINCT delivery_push_task_id) | push任务总数 |
+| 运行中任务数 | COUNT(DISTINCT CASE WHEN status = 'RUNNING' THEN delivery_push_task_id END) | 当前运行中的任务数 |
+| 按业务线统计 | COUNT(DISTINCT CASE WHEN biz_line_code_lv1 = 'xxx' THEN delivery_push_task_id END) | 按一级业务线统计任务数 |
+
+
+### 6.3 DWS口径（用户级汇总）
+> 基于 `adm_hk_asap_dwd_push_send_expo_clk_detail_fast/slow_di`
+>
+
+| 指标名称 | DWS计算公式 | 说明 |
+| --- | --- | --- |
+| 用户级曝光计数 | SUM(expo_count) | 某用户某任务的曝光次数 |
+| 用户级点击计数 | SUM(clk_count) | 某用户某任务的点击次数 |
+| 用户级CTR | SUM(clk_count) / NULLIF(SUM(expo_count), 0) | 用户级点击率 |
+
+
+---
+
+## 七、业务术语映射（NL2SQL核心）
+### 7.1 push类型
+| **用户说的** | **push_type实际值** |
+| --- | --- |
+| 营销Push | PUSH_MARKETING |
+| 平台Push | PUSH_PLATFORM |
+| 策略Push | PUSH_STRATEGY |
+| 商业化Push | PUSH_COMMERCIAL |
+| 事件Push | PUSH_EVENT |
+
+
+### 7.2 文案类型
+| **用户说的** | **creative_type实际值** |
+| --- | --- |
+| 人工文案 | MANUAL / 空 |
+| AIGC文案 | LLM / AIGC |
+| 大模型文案 | LLM / AIGC |
+| 规则引擎 | RULE |
+| 标签引擎 | LABEL |
+
+
+### 7.3 文案标签
+| **用户说的** | **creative_tag实际值** |
+| --- | --- |
+| 利益导向 | Benefit_Oriented |
+| 情感导向 | Emotion_Oriented |
+| 紧急导向 | Urgency_Oriented |
+
+
+### 7.4 任务状态
+| **用户说的** | **status实际值** |
+| --- | --- |
+| 任务初始 | INIT |
+| 任务运行中/生效中 | RUNNING |
+| 任务暂停 | PAUSE |
+| 任务完成 | FINISH |
+
+
+### 7.5 push触发类型
+| **用户说的** | **push_trigger_type实际值** |
+| --- | --- |
+| 自动触发 | auto |
+| 人工触发 | manual |
+| 算法触发 | alg |
+
+
+### 7.6 业务线层级
+业务线是push域的核心组织维度，包含多级结构：
+
+| **层级** | **字段** | **说明** | 层级范围 |
+| --- | --- | --- | --- |
+| 一级业务线 | biz_line_name_lv1 / biz_line_code_lv1 | 业务线的最高层级，比如：钱包、支付 | 统计任务、报表的主要分类维度 |
+| 二级业务线 | biz_line_name_lv2 / biz_line_code_lv2 | 业务线的二级分类，比如：运营、营销等 | 更细粒度的业务分类 |
+| 三级业务线 | biz_line_name_lv3 / biz_line_code_lv3 | 业务线的最细粒度分类，比如：营销高端、营销低端等 | 用于精细化的业务运营分析 |
+| 行业组织 | industry_org_name / industry_org_id | 行业组织是基于业务线、产品、渠道等维度的综合组织单位，比如：银行业务体系、保险业务体系 | 用于跨业务线的组织管理和资源分配 |
+
+
+**数据来源**：业务线表 `antsg_nods.ods_imcdp_biz_line_org`  
+**设计考虑**：
+
+- 一级业务线是必填字段，每个push任务必须归属到一级业务线
+- 二级、三级业务线是可选字段，用于更细粒度的分析
+- 行业组织信息不再作为独立概念，其信息合并到业务线的描述中
+
+### 7.7 环境
+| **用户说的** | **environment实际值** |
+| --- | --- |
+| 生产环境 | R |
+| 预发环境 | P |
+
+
+### 7.8 时间范围
+| 用户说的 | dt 条件 |
+| --- | --- |
+| 今天 / 昨天 | dt = '${bizdate}' |
+| 最近7天 | dt >= DATE_FORMAT(DATEADD('{bizdate}', -6, 'dd'), 'yyyyMMdd') AND dt <= '{bizdate}' |
+| 过去30天 | dt >= DATE_FORMAT(DATEADD('{bizdate}', -29, 'dd'), 'yyyyMMdd') AND dt <= '{bizdate}' |
+
+
+---
+
+## 八、通用查询样例
+> **重要：** 所有 SQL 必须加表前缀，ADS表必须加 `AND environment = 'R'`
+>
+
+### 8.1 按业务线统计push任务（DWD宽表，推荐）
+```sql
+-- 按一级业务线统计任务数和运行中任务数
+SELECT 
+    dt
+        ,biz_line_name_lv1
+        ,COUNT(DISTINCT delivery_push_task_id) AS total_task_cnt
+        ,COUNT(DISTINCT CASE WHEN status = 'RUNNING' THEN delivery_push_task_id END) AS running_task_cnt
+FROM    adm_hk_asap_dwd_push_task_info_dd
+WHERE   dt = '${bizdate}'
+AND     environment = 'R'
+AND     business_unit_code = 'SG_MAGA_HK'
+GROUP BY dt
+        ,biz_line_name_lv1
+ORDER BY total_task_cnt DESC;
+```
+
+### 8.2 按业务线分类统计（DWD宽表）
+```sql
+-- 统计一级、二级、三级业务线下的任务分布
+SELECT 
+    dt,
+        biz_line_name_lv1,
+        biz_line_name_lv2,
+        biz_line_name_lv3,
+        COUNT(DISTINCT delivery_push_task_id) AS task_cnt,
+        COUNT(DISTINCT CASE WHEN creative_type = 'AIGC' THEN delivery_push_task_id END) AS aigc_task_cnt
+FROM    adm_hk_asap_dwd_push_task_info_dd
+WHERE   dt = '${bizdate}'
+AND     environment = 'R'
+AND     business_unit_code = 'SG_MAGA_HK'
+GROUP BY dt
+        ,biz_line_name_lv1
+        ,biz_line_name_lv2
+        ,biz_line_name_lv3
+ORDER BY task_cnt DESC;
+```
+
+### 8.3 push发送效果汇总（ADS快表）
+```sql
+SELECT  dt
+        ,biz_line_name_lv1
+        ,SUM(send_cnt_pv)                  AS send_total_pv
+        ,SUM(send_success_cnt_pv)           AS send_success_pv
+        ,SUM(exposure_pv)                  AS exposure_total_pv
+        ,SUM(click_pv)                     AS click_total_pv
+        ,ROUND(SUM(click_pv) / NULLIF(SUM(exposure_pv), 0), 4) AS pv_ctr
+        ,SUM(send_cnt_uv)                  AS send_total_uv
+        ,SUM(exposure_uv)                  AS exposure_total_uv
+        ,SUM(click_uv)                     AS click_total_uv
+        ,ROUND(SUM(click_uv) / NULLIF(SUM(exposure_uv), 0), 4) AS uv_ctr
+FROM    adm_hk_asap_push_task_info_fast_ds
+WHERE   dt = '${bizdate}'
+  AND     environment = 'R'
+GROUP BY dt
+        ,biz_line_name_lv1
+ORDER BY click_total_pv DESC;
+```
+
+### 8.4 业务线维度下AIGC任务分析
+```sql
+-- 分析各业务线的AIGC任务占比、创新情况
+SELECT 
+    biz_line_name_lv1,
+    COUNT(DISTINCT delivery_push_task_id)                     AS total_task_cnt,
+    SUM(CASE WHEN creative_type = 'AIGC' THEN 1 ELSE 0 END)        AS aigc_task_cnt,
+    ROUND(aigc_task_cnt * 1.0 / NULLIF(total_task_cnt, 0), 4) AS aigc_task_ratio
+FROM    adm_hk_asap_dwd_push_task_info_dd
+WHERE   dt = '${bizdate}'
+AND     environment = 'R'
+GROUP BY biz_line_name_lv1
+ORDER BY total_task_cnt DESC;
+```
+
+---
+
+## 九、查询注意事项
+1. **分区字段**：dt 格式为 `yyyyMMdd`，如 `20260319`
+2. **environment过滤**：ADS表查询必须加 `AND environment = 'R'`，否则会包含预发数据
+3. **核心DWD表**：`adm_hk_asap_dwd_push_task_info_dd`是查询任务维度的核心表，包含所有push任务、文案、业务线等信息
+4. **业务线优先**：业务线是push域的核心组织维度，所有查询都应该按业务线分组，便于业务线负责的数据管理
+5. **用户级明细表**：`adm_hk_asap_dwd_push_send_expo_clk_detail_fast/slow_di` 提供按任务和用户的详细效果分析
+6. **AIGC任务表**：`adm_asap_push_aigc_task_running_dd` 记录AIGC专用任务信息，用于AI效果分析
+7. **空值处理**：除法运算统一使用 `NULLIF(分母, 0)` 避免除零错误
+8. **快慢表区分**：
+    - 快表：T+5分钟延迟
+    - 慢表：T+2小时延迟
+9. **业务线多级结构**：使用一级、二级、三级业务线结构，满足不同分析粒度需求
+10. **任务状态判断**：任务状态包括INIT(初始)、RUNNING(运行中)、PAUSE(暂停)、FINISH(完成)
+
+================================================================================
+<!-- FILE_SEPARATOR: PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md -->
+================================================================================
+
+# adm_hk_asap_dwd_push_task_info_dd（push任务核心宽表）
+> 返回 [push域 Schema 总览](./PUSH域_01_Schema总览.md)
+
+---
+
+## 一、表信息
+| 属性 | 值 |
+| --- | --- |
+| 完整路径 | antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd |
+| 层级 | DWD（明细层） |
+| 主键 | delivery_push_task_id, creative_id |
+| 外键 | delivery_push_task_id → push任务 |
+| 外键 | creative_id → antsg_nods.ods_imcdp_static_content |
+| 外键 | industry_org_id → antsg_nods.ods_imcdp_biz_line_org |
+| 分区 | dt (yyyyMMdd) |
+| 说明 | push任务核心宽表，汇总所有任务、文案、业务线、AIGC文案等所有信息 |
+
+---
+
+## 二、字段列表
+| 字段名 | 类型 | 描述 | 值域/示例 | 热度 |
+| --- | --- | --- | --- | --- |
+| dt | string | 日期 | 格式: yyyyMMdd   示例：20260322 | 高 |
+| delivery_push_task_id | string | push任务ID | 主键   示例：DELIVERY_PUSH_TASK_20260322_001 | 高 |
+| creative_id | string | 文案ID | 外键→antsg_nods.ods_imcdp_static_content   示例：CRM_001 | 高 |
+| industry_org_id | string | 行业组织ID | 外键→antsg_nods.ods_imcdp_biz_line_org   示例：IO_001 | 高 |
+| push_type | string | push类型 | 枚举：PUSH_MARKETING, PUSH_PLATFORM, PUSH_STRATEGY, PUSH_COMMERCIAL, PUSH_EVENT | 高 |
+| creative_type | string | 文案类型 | 枚举：Manual, LLM   示例：LLM | 高 |
+| status | string | 任务状态 | 枚举：INIT, RUNNING, PAUSE, FINISH   示例：RUNNING | 高 |
+| user_id | string | 用户ID | 示例：208810217... | 中 |
+| push_channel_type | string | push渠道类型 | 示例：ALIAPP | 中 |
+| environment | string | 环境 | 枚举：R, P   示例：R | 高 |
+| business_unit_code | string | 业务单元编码 | 示例：SG_MAGA_HK | 高 |
+| biz_line_name_lv1 | string | 一级业务线名称 | 示例：钱包 | 高 |
+| biz_line_name_lv2 | string | 二级业务线名称 | 示例：运营 | 中 |
+| biz_line_name_lv3 | string | 三级业务线名称 | 示例：营销 | 中 |
+| industry_org_name | string | 行业组织名称 | 示例：综测 | 中 |
+| gmt_create | datetime | 创建时间 | 示例：2026-03-22 14:30:25 | 中 |
+| gmt_modified | datetime | 修改时间 | 示例：2026-03-22 15:00:00 | 中 |
+| call_login | string | 负责工号 | 文案负责人工号   示例：zhangsan | 低 |
+| aigc_text | string | AIGC生成文案 | 大模型生成的push文案内容   示例：您的钱包余额不足... | 中 |
+
+---
+
+## 三、常用查询场景
+### 3.1 查询当天运行中的任务
+```sql
+SELECT 
+    delivery_push_task_id,
+    push_type,
+    creative_type,
+    biz_line_name_lv1,
+    industry_org_name,
+    gmt_create
+FROM adm_hk_asap_dwd_push_task_info_dd
+WHERE dt = '${bizdate}'
+  AND status = 'RUNNING'
+  AND environment = 'R'
+  AND business_unit_code = 'SG_MAGA_HK';
+```
+
+### 3.2 按业务线统计任务数
+```sql
+SELECT 
+    biz_line_name_lv1,
+    COUNT(DISTINCT delivery_push_task_id) as task_cnt,
+    COUNT(DISTINCT CASE WHEN creative_type = 'AIGC' THEN delivery_push_task_id END) as aigc_task_cnt
+FROM adm_hk_asap_dwd_push_task_info_dd
+WHERE dt = '${bizdate}'
+  AND environment = 'R'
+  AND business_unit_code = 'SG_MAGA_HK'
+GROUP BY biz_line_name_lv1;
+```
+
+### 3.3 按文案类型统计
+```sql
+SELECT 
+    creative_type,
+    COUNT(DISTINCT delivery_push_task_id) as task_cnt
+FROM adm_hk_asap_dwd_push_task_info_dd
+WHERE dt = '${bizdate}'
+  AND environment = 'R'
+  AND business_unit_code = 'SG_MAGA_HK'
+GROUP BY creative_type;
+```
+
+### 3.4 按行业组织统计任务分布
+```sql
+SELECT 
+    industry_org_name,
+    COUNT(DISTINCT delivery_push_task_id) as task_cnt
+FROM adm_hk_asap_dwd_push_task_info_dd
+WHERE dt = '${bizdate}'
+  AND environment = 'R'
+GROUP BY industry_org_name;
+```
+
+---
+
+## 四、注意事项
+1. **分区字段**：dt 为分区字段，查询时必须指定
+2. **环境过滤**：查询时需要加上 `environment = 'R'` 只查询生产环境数据
+3. **状态枚举**：status 字段枚举值说明
+    - INIT：初始
+    - RUNNING：运行中
+    - PAUSED：已暂停
+    - FINISH：已完成
+4. **业务线多级结构**：支持一级、二级、三级业务线维度分析
+5. **AIGC文案**：aigc_text 字段存储大模型生成的push文案内容
+6. **关联维度**：通过 delivery_push_task_id 关联其他 push 相关表
+
+================================================================================
+<!-- FILE_SEPARATOR: PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md -->
+================================================================================
+
+# adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di（push慢表）
+> 返回 [push域 Schema 总览](./PUSH域_01_Schema总览.md)
+
+---
+
+## 一、表信息
+| 属性 | 值 |
+| --- | --- |
+| 完整路径 | antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di |
+| 层级 | DWS（明细层） |
+| 主键 | - (日志表无主键) |
+| 外键 | delivery_push_task_id,creative_id → adm_hk_asap_dwd_push_task_info_dd |
+| 分区 | dt (yyyyMMdd) |
+| 说明 | push慢表，用于分析push消息的发送曝光及点击转化效果，聚焦慢查询场景 |
+
+---
+
+## 二、核心字段列表
+### 维度字段
+| 编号 | 字段名 | 类型 | 描述 | 值域/示例 | 热度 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | delivery_push_task_id | STRING | push任务ID | PUSH_TASK_ID20260414100211431 | �� 高 |
+| 2 | delivery_push_task_name | STRING | push任务名称 | 202604-生活頻道-本地優惠大牌餐飲券-Push | ⚡ 中 |
+| 3 | industry_org_id | STRING | 行业组织ID | INDUSTRY_ORG_09_CHILL_LIFE_02 | ⚡ 中 |
+| 4 | industry_org_name | STRING | 行业组织名称 | 数字生活_chill生活 | ⚡ 中 |
+| 6 | creative_id | STRING | 文案ID | STATIC_CONTENT20260415100532789 | �� 高 |
+| 7 | creative_type | STRING | 文案类型 | Manual, LLM | ⚡ 中 |
+| 8 | creative_tag | STRING | 文案标签 | 精明攻略型 | ⚡ 中 |
+| 11 | send_time | STRING | 发送时间-时间戳 | 1776582012260 | �� 高 |
+| 12 | send_date | STRING | 发送时间-东八区 | 20260419 | �� 高 |
+| 13 | user_id | STRING | 用户ID | 2160210000005829 | �� 高 |
+| 14 | send_status | STRING | push任务发送状态 | SEND_SUCCESS /SEND_FAIL | ⚡ 中 |
+| 15 | send_fail_msg | STRING | push任务失败原因 | ALL_PUSH_TASK_TARGETING_FILTER_NOT_PASS | ❄️ 低 |
+| 16 | push_title | STRING | push标题 | ��️享受美食前先買張券，即慳超多！即買�� | ⚡ 中 |
+| 17 | push_sub_title | STRING | push副标题 | alipayhk://platformapi/startApp?appId=2060090000320265 | ⚡ 中 |
+| 18 | push_url | STRING | push URL | alipayhk://platformapi/startApp | ⚡ 中 |
+| 22 | model | STRING | 机型，ANDROID/IOS | IOS, ANDROID | �� 高 |
+| 23 | user_lifecycle | STRING | 用户生命周期 | 新手期用户,成长期用户,成熟期用户,衰退期用户,流失期用户,沉默期用户 | ⚡ 中 |
+| 24 | user_value | STRING | 用户价值 | 高价值用户,一般价值用户,重点发展用户,一般发展用户,重点保持用户,一般保持用户,重点挽留用户,低价值用户 | ⚡ 中 |
+| 25 | user_activity_level | STRING | 用户活跃分层 | 高频,中频,低频,流失,沉默 | �� 高 |
+| 26 | push_type | STRING | push类型 | 营销Push，平台Push，战略Push，商业化Push,事件push | ⚡ 中 |
+| 29 | push_task_start_date | STRING | push任务开始时间 | 2026-04-15 16:00:00.000000 | �� 高 |
+| 30 | push_task_end_date | STRING | push任务结束时间 | 2026-04-30 15:59:59.000000 | �� 高 |
+| 36 | push_task_gmt_create | STRING | push任务创建时间 | 2026-04-14 09:26:16.105000 | �� 高 |
+| 48 | is_expo | BIGINT | 是否曝光，1是0否 | 0, 1 | �� 高 |
+| 49 | expo_pv | BIGINT | 曝光次数 | 1，2，3 | ❄️ 低 |
+| 54 | is_clk | BIGINT | 是否点击，1是0否 | 0, 1 | �� 高 |
+| 55 | clk_pv | BIGINT | 点击次数 | 1，2，3 | ❄️ 低 |
+| 57 | dt | STRING | 日期分区 | 20260419 | �� 高 |
+
+### 度量字段
+| 字段名 | 类型 | 描述 | 值域/示例 | 热度 |
+| --- | --- | --- | --- | --- |
+| is_expo | BIGINT | 是否曝光 | 1/0 | �� 高 |
+| expo_pv | BIGINT | 曝光次数 | 1，3，4 | ❄️ 低 |
+| is_clk | BIGINT | 是否点击 | 1/0 | �� 高 |
+| clk_pv | BIGINT | 点击次数 | 1，2，3 | ❄️ 低 |
+
+---
+
+## 三、常用查询场景
+### 3.1 按任务统计整体效果
+```sql
+SELECT 
+    delivery_push_task_id,
+    count(1) as send_pv,
+    COUNT(if(is_expo='1',1,null)) AS total_expo_pv,
+    COUNT(if(is_clk='1',1,null)) AS total_clk_pv,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di
+WHERE dt = '${bizdate}'
+GROUP BY delivery_push_task_id
+ORDER BY total_expo DESC
+```
+
+### 3.2 计算整体CTR转化率
+```sql
+SELECT  delivery_push_task_id
+        ,COUNT(IF(is_expo = '1', 1, NULL)) AS total_expo_pv
+        ,COUNT(IF(is_clk = '1', 1, NULL)) AS total_clk_pv
+        ,ROUND(COUNT(IF(is_clk = '1', 1, NULL)) / NULLIF(COUNT(IF(is_expo = '1', 1, NULL)), 0), 4) AS ctr
+FROM    anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di
+WHERE   dt = '${bizdate}'
+GROUP BY delivery_push_task_id 
+```
+
+### 3.3 按用户分层分析
+```sql
+SELECT 
+    user_lifecycle,
+    user_value,
+    user_activity_level,
+    COUNT(DISTINCT user_id) AS user_cnt,
+    SUM(is_expo) AS expo_cnt,
+    SUM(is_clk) AS clk_cnt,
+    ROUND(SUM(is_clk) / NULLIF(SUM(is_expo), 0), 4) AS ctr
+FROM adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di
+WHERE dt = '${bizdate}'
+GROUP BY user_lifecycle, user_value, user_activity_level
+```
+
+### 3.4 按渠道分析
+```sql
+SELECT 
+    environment,
+    push_channel_type,
+    COUNT(DISTINCT delivery_push_task_id) AS task_cnt,
+    SUM(is_expo) AS expo_cnt,
+    SUM(is_clk) AS clk_cnt,
+    ROUND(SUM(is_clk) / NULLIF(SUM(is_expo), 0), 4) AS ctr
+FROM adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di
+WHERE dt = '${bizdate}'
+GROUP BY environment, push_channel_type
+```
+
+---
+
+## 四、注意事项
+1. **分区字段**：dt (yyyyMMdd) 为分区字段，查询时必须指定
+2. **点击定义**：点击定义为用户点击push消息后产生有效跳转行为，且is_clk=1
+3. **曝光定义**：曝光定义为push消息到达设备并被展示，且is_expo=1
+4. **关联维度**：通过 delivery_push_task_id 关联 push 任务核心宽表 `adm_hk_asap_dwd_push_task_info_dd` 获取任务详情
+5. **数据来源**：数据来自埋点系统上报的曝光和点击事件日志
+6. **慢表定位**：本表专门用于分析push消息处理性能问题，通过暴露时间差来识别慢任务
+
+================================================================================
+<!-- FILE_SEPARATOR: PUSH域_04_adm_hk_asap_push_task_info_detail_di.md -->
+================================================================================
+
+# adm_hk_asap_push_task_info_detail_di（push发送日志明细表）
+> 返回 [push域 Schema 总览](./PUSH域_01_Schema总览.md)
+
+---
+
+## 一、表信息
+| 属性 | 值 |
+| --- | --- |
+| 完整路径 | antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di |
+| 层级 | DWD（明细层） |
+| 主键 | - (日志表无主键) |
+| 外键 | delivery_push_task_id ,creative_id→ adm_hk_asap_dwd_push_task_info_dd |
+| 分区 | dt (yyyyMMdd) |
+| 说明 | push发送日志明细表，记录每个用户/设备的发送记录 |
+
+---
+
+## 二、核心字段列表
+## 维度字段
+| 字段名 | 类型 | 描述 | 值域/示例 | 热度 |
+| --- | --- | --- | --- | --- |
+| dt | string | 日期 | 格式: yyyyMMdd   示例：20260322 | �� 高 |
+| delivery_push_task_id | string | push任务ID | 外键→adm_hk_asap_dwd_push_task_info_dd | 示例：PUSH_TASK_ID20260130100136809 |
+| user_id | string | 用户ID | 示例：208810217... | �� 高 |
+| service_code | string | service_code | 示例：GT_SC_alipayHK_push | ⚡ 中 |
+| creative_id | string | 文案ID | 示例：STATIC_CONTENT20260401100483433 | ⚡ 中 |
+| send_time | string | 发送时间 | 格式：yyyy-MM-dd HH:mm:ss  示例：2026-03-22 14:30:25 | �� 高 |
+| send_status | string | 发送状态 | 枚举：SEND_SUCCESS, SEND_FAIL   示例：SEND_SUCCESS | �� 高 |
+| send_fail_msg | string | 失败原因 | 示例：ALL_PUSH_TASK_TARGETING_FILTER_NOT_PASS | ⚡ 中 |
+| push_title | string | 文案标题 | 示例：4月北上！ | ⚡ 中 |
+| push_sub_title | string | 文案副标题 | 示例：券立即享$5优惠！ | ⚡ 中 |
+| push_url | string | 文案URL | JSON格式 | 示例：alipayhk://platformapi/startApp?appId=85200023 |
+| business_unit_code | string | 业务单元代码 | 示例：SG_MAGA_HK | ⚡ 中 |
+| environment | string | 环境 | 枚举：R, P   示例：R | �� 高 |
+| msg_id | string | msg_id | 示例：ASAP_8b1be6f34c98495f1658f31d6b8356fe | ⚡ 中 |
+| extend_info | string | 扩展字段 | JSON格式 | 示例：{} |
+| tnt_id | string | 租户id | 示例：ALIPW3HK | ❄️ 低 |
+
+## 指标字段
+| 字段名 | 类型 | 描述 | 使用方式 | 热度 |
+| --- | --- | --- | --- | --- |
+| send_count | bigint | 发送次数 | 预存字段，直接 COUNT(calculated) | �� 高 |
+| send_success_count | bigint | 发送成功次数 | WHERE send_status = 'SEND_SUCCESS' COUNT | �� 高 |
+| send_fail_count | bigint | 发送失败次数 | WHERE send_status = 'SEND_FAIL' COUNT | ⚡ 中 |
+
+---
+
+## 三、发送状态说明
+send_status 字段枚举值：
+
+- SEND_SUCCESS：发送成功
+- SEND_FAIL：发送失败
+
+常见失败原因（send_fail_msg）：
+
+- ALL_PUSH_TASK_TARGETING_FILTER_NOT_PASS：任务定向过滤未通过
+
+---
+
+## 四、常用查询场景
+### 4.1 查询当天push发送统计
+```sql
+SELECT 
+    delivery_push_task_id,
+    send_status,
+    COUNT(*) as send_cnt,
+    COUNT(DISTINCT user_id) as send_uv
+FROM adm_hk_asap_push_task_info_detail_di
+WHERE dt = '${bizdate}'
+  AND environment = 'R'
+GROUP BY delivery_push_task_id, send_status;
+```
+
+### 4.2 查询某用户当天的发送记录
+```sql
+SELECT 
+    delivery_push_task_id,
+    send_time,
+    send_status,
+    push_title,
+    push_sub_title
+FROM adm_hk_asap_push_task_info_detail_di
+WHERE dt = '${bizdate}'
+  AND user_id = '${user_id}'
+  AND environment = 'R'
+ORDER BY send_time DESC;
+```
+
+### 4.3 按发送状态统计
+```sql
+SELECT 
+    send_status,
+    COUNT(*) as cnt,
+    COUNT(DISTINCT delivery_push_task_id) as task_cnt
+FROM adm_hk_asap_push_task_info_detail_di
+WHERE dt = '${bizdate}'
+  AND environment = 'R'
+GROUP BY send_status;
+```
+
+### 4.4 按任务统计发送成功率
+```sql
+SELECT 
+    delivery_push_task_id,
+    COUNT(*) as total_send,
+    SUM(CASE WHEN send_status = 'SEND_SUCCESS' THEN 1 ELSE 0 END) as success_count,
+    ROUND(SUM(CASE WHEN send_status = 'SEND_SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as success_rate
+FROM adm_hk_asap_push_task_info_detail_di
+WHERE dt = '${bizdate}'
+  AND environment = 'R'
+GROUP BY delivery_push_task_id;
+```
+
+---
+
+## 五、注意事项
+1. **分区字段**：dt (天分区) 为分区字段，查询时必须指定
+2. **环境过滤**：查询时需要加上 `environment = 'R'` 只查询生产环境数据
+3. **关联维度**：通过 delivery_push_task_id 关联 push 任务核心宽表 `adm_hk_asap_dwd_push_task_info_dd` 获取任务详情
+4. **数据来源**：数据来自 push 发送系统和日志系统
+5. **发送状态**：send_status 字段区分成功和失败记录，失败原因在 send_fail_msg 字段中说明
+
+================================================================================
+<!-- FILE_SEPARATOR: PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md -->
+================================================================================
+
+# adm_hk_asap_dwd_push_log_expo_di（push曝光日志明细表）
+> 返回 [push域 Schema 总览](./PUSH域_01_Schema总览.md)
+
+---
+
+## 一、表信息
+| 属性 | 值 |
+| --- | --- |
+| 完整路径 | antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di |
+| 层级 | DWD（明细层） |
+| 主键 | - (日志表无主键) |
+| 外键 | delivery_push_task_id,creative_id → adm_hk_asap_dwd_push_task_info_dd |
+| 分区 | dt (yyyyMMdd) |
+| 说明 | push域曝光日志明细表，用于分析push消息的曝光效果 |
+
+---
+
+## 二、核心字段列表
+## 维度字段
+| 字段名 | 类型 | 描述 | 值域/示例 | 热度 |
+| --- | --- | --- | --- | --- |
+| loged_time | string | 上传服务器记录时间 | 2026-03-22 18:27:24.675 | ⚡ 中 |
+| log_time | string | 客户端日志时间 | 2026-03-22 18:27:24.675 | �� 高 |
+| alipay_product_id | string | 产品ID | WALLET_HK_ANDROID,WALLET_HK_IOS | �� 高 |
+| alipay_product_version | string | 产品版本 | 10.3.96, 9.8.0 | ⚡ 中 |
+| tcid | string | 设备id | 460000000000000\|nskvy9pm6ob500m | �� 高 |
+| session_id | string | 会话id | 307B7E2F-AD1D-407B-AD48-8F6EB14B8D26 | �� 高 |
+| user_id | string | 用户id(2088开头) | 2088222168756612 | �� 高 |
+| behaviorid | string | 行为id(exposure) | exposure | �� 高 |
+| spm | string | 曝光点的spm | a1.b2.c3.d4 | �� 高 |
+| spm_a | string | 曝光点spm的a位 | a1 | ⚡ 中 |
+| spm_b | string | 曝光点spm的b位 | b2 | ⚡ 中 |
+| spm_c | string | 曝光点spm的c位 | c3 | ⚡ 中 |
+| spm_d | string | 曝光点spm的d位 | d4 | ⚡ 中 |
+| utdid | string | utdid | ZdKwcV9lBtsDAEQ5OubWwsdY | �� 高 |
+| device_model | string | 设备号 | iPhone16 2 | ⚡ 中 |
+| os_version | string | 操作系统版本 | 17.6.1 | ⚡ 中 |
+| network | string | 网络 | LTE\|-- | ⚡ 中 |
+| language | string | 语言 | zh-CN, en | ❄️ 低 |
+| ip | string | ip | 192.168.1.1, 114.114... | ⚡ 中 |
+| ip_country | string | 从ip中解析出来的国家名称 | 中国，USA | ❄️ 低 |
+| ip_province | string | 从ip中解析出来的省份名称 | 浙江省，California | ❄️ 低 |
+| ip_city | string | 从ip中解析出来的城市名称 | 杭州市，San Francisco | ❄️ 低 |
+| log_type | string | 日志来源渠道 | native, h5, cashier | ⚡ 中 |
+| experiment_ids | string | ABTest的实验id | exp_12345_groupB | ⚡ 中 |
+| msg_id | string | ifcgotone的msgId | 2025072319117160175327073143434113170539031700053 | �� 高 |
+| delivery_push_task_id | string | push任务ID | 外键→adm_hk_asap_dwd_push_task_info_dd<br/>示例：PUSH_TASK_ID20250723100019439 | 示例：DELIVERY_PUSH_TASK_20260322_001 |
+| service_code | string | service code | GT_SC_alipayHK_push | ❄️ 低 |
+| creative_id | string | 文案ID | STATIC_CONTENT20250723100037930 | ❄️ 低 |
+| push_title | string | push的标题 | �� 只差一步！完成認證即可享有更多福利 | ⚡ 中 |
+| push_sub_title | string | push的文本 | 快啲嚟解鎖專屬禮遇！立即認證 > | ⚡ 中 |
+| push_url | string | push的uri,json格式 | | ❄️ 低 |
+| dt | string | 时间分区 | 20260327 | �� 高 |
+
+---
+
+## 三、日志来源说明
+log_type 字段枚举值：
+
+- native：来自uniform_behavior的文件采集
+- h5：来自webapp文件的采集
+- cashier：来自收银台日志的采集
+
+---
+
+## 四、常用查询场景
+### 4.1 统计曝光PV/UV
+```sql
+SELECT 
+    dt,
+    COUNT(*) AS expo_pv,
+    COUNT(DISTINCT user_id) AS expo_uv
+FROM adm_hk_asap_dwd_push_log_expo_di
+WHERE dt = '${bizdate}'
+GROUP BY dt
+```
+
+### 4.2 按任务统计曝光
+```sql
+SELECT 
+    delivery_push_task_id,
+    COUNT(*) AS expo_pv,
+    COUNT(DISTINCT user_id) AS expo_uv
+FROM adm_hk_asap_dwd_push_log_expo_di
+WHERE dt = '${bizdate}'
+GROUP BY delivery_push_task_id
+```
+
+### 4.3 按渠道统计曝光分布
+```sql
+SELECT 
+    push_channel,
+    COUNT(*) AS expo_pv,
+    COUNT(DISTINCT user_id) AS expo_uv
+FROM adm_hk_asap_dwd_push_log_expo_di
+WHERE dt = '${bizdate}'
+GROUP BY push_channel
+```
+
+---
+
+## 五、注意事项
+1. **分区字段**：dt (天分区) 为分区字段，查询时必须指定
+2. **曝光定义**：曝光定义为push消息成功推送到用户终端并被展示
+3. **关联维度**：通过 delivery_push_task_id 关联 push 任务核心宽表 `adm_hk_asap_dwd_push_task_info_dd` 获取任务详情
+4. **数据来源**：数据来自埋点系统上报的曝光事件
+
+================================================================================
+<!-- FILE_SEPARATOR: PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md -->
+================================================================================
+
+# adm_hk_asap_dwd_push_log_clk_di（push点击日志明细表）
+> 返回 [push域 Schema 总览](./PUSH域_01_Schema总览.md)
+
+---
+
+## 一、表信息
+| 属性 | 值 |
+| --- | --- |
+| 完整路径 | antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di |
+| 层级 | DWD（明细层） |
+| 主键 | - (日志表无主键) |
+| 外键 | delivery_push_task_id,creative_id → adm_hk_asap_dwd_push_task_info_dd |
+| 分区 | dt (yyyyMMdd) |
+| 说明 | push域点击日志明细表，用于分析push消息的点击转化效果 |
+
+---
+
+## 二、核心字段列表
+## 维度字段
+| 字段名 | 类型 | 描述 | 值域/示例 | 热度 |
+| --- | --- | --- | --- | --- |
+| loged_time | string | 上传服务器记录时间 | 2026-03-22 18:27:24.675 | ⚡ 中 |
+| log_time | string | 客户端日志时间 | 2026-03-22 18:27:24.675 | �� 高 |
+| alipay_product_id | string | 产品ID | WALLET_HK_ANDROID,WALLET_HK_IOS | �� 高 |
+| alipay_product_version | string | 产品版本 | 10.3.96, 9.8.0 | ⚡ 中 |
+| tcid | string | 设备id | 460000000000000\|nskvy9pm6ob500m | �� 高 |
+| session_id | string | 会话id | 307B7E2F-AD1D-407B-AD48-8F6EB14B8D26 | �� 高 |
+| user_id | string | 用户id(2088开头) | 208810217... | �� 高 |
+| behaviorid | string | 行为id(clicked) | clicked | �� 高 |
+| spm | string | 当前点击的spm | a1.b2.c3.d4 | �� 高 |
+| spm_a | string | 当前点击spm的a位 | a1 | ⚡ 中 |
+| spm_b | string | 当前点击spm的b位 | b2 | ⚡ 中 |
+| spm_c | string | 当前点击spm的c位 | c3 | ⚡ 中 |
+| spm_d | string | 当前点击spm的d位 | d4 | ⚡ 中 |
+| utdid | string | utdid | ZdKwcV9lBtsDAEQ5OubWwsdY | �� 高 |
+| device_model | string | 设备号 | iPhone16 2 | ⚡ 中 |
+| os_version | string | 操作系统版本 | 17.6.1 | ⚡ 中 |
+| network | string | 网络 | LTE\|-- | ⚡ 中 |
+| language | string | 语言 | zh-CN, en | ❄️ 低 |
+| ip | string | ip | 192.168.1.1, 114.114... | ⚡ 中 |
+| ip_country | string | 从ip中解析出来的国家名称 | 中国, USA | ❄️ 低 |
+| ip_province | string | 从ip中解析出来的省份名称 | 浙江省, California | ❄️ 低 |
+| ip_city | string | 从ip中解析出来的城市名称 | 杭州市, San Francisco | ❄️ 低 |
+| log_type | string | 日志来源渠道 | native, h5, cashier | ⚡ 中 |
+| experiment_ids | string | ABTest的experimentIds | exp_12345_groupB | ⚡ 中 |
+| msg_id | string | ifcgotone的msgId | 2025072319117160175327073143434113170539031700053 | �� 高 |
+| delivery_push_task_id | string | push任务ID | 外键→adm_hk_asap_dwd_push_task_info_dd<br/>示例：PUSH_TASK_ID20250723100019439 | 示例：DELIVERY_PUSH_TASK_20260322_001 |
+| service_code | string | service code | GT_SC_alipayHK_push | ❄️ 低 |
+| creative_id | string | 文案ID | STATIC_CONTENT20250723100037930 | ❄️ 低 |
+| push_title | string | push的标题 | �� 只差一步！完成認證即可享有更多福利 | ⚡ 中 |
+| push_sub_title | string | push的文本 | 快啲嚟解鎖專屬禮遇！立即認證 > | ⚡ 中 |
+| push_url | string | push的uri,json格式 | | ❄️ 低 |
+| dt | string | 时间分区 | 20260327 | �� 高 |
+
+---
+
+## 三、日志来源说明
+log_type 字段枚举值：
+
+- native：来自uniform_behavior的文件采集
+- h5：来自webapp文件的采集
+- cashier：来自收银台日志的采集
+
+---
+
+## 四、常用查询场景
+### 4.1 统计点击PV/UV
+```sql
+SELECT 
+    dt,
+    COUNT(*) AS clk_pv,
+    COUNT(DISTINCT user_id) AS clk_uv
+FROM adm_hk_asap_dwd_push_log_clk_di
+WHERE dt = '${bizdate}'
+GROUP BY dt
+```
+
+### 4.2 按任务统计点击量
+```sql
+SELECT 
+    delivery_push_task_id,
+    COUNT(*) AS total_clk,
+    COUNT(DISTINCT user_id) AS clk_uv
+FROM adm_hk_asap_dwd_push_log_clk_di
+WHERE dt = '${bizdate}'
+GROUP BY delivery_push_task_id
+ORDER BY total_clk DESC
+```
+
+### 4.3 按渠道统计点击量
+```sql
+SELECT 
+    push_channel,
+    COUNT(*) AS clk_pv,
+    COUNT(DISTINCT user_id) AS clk_uv
+FROM adm_hk_asap_dwd_push_log_clk_di
+WHERE dt = '${bizdate}'
+GROUP BY push_channel
+```
+
+### 4.4 计算CTR点击率（关联曝光表）
+```sql
+SELECT 
+    t.delivery_push_task_id,
+    SUM(t.expo_pv) AS expo_pv,
+    SUM(t.clk_pv) AS clk_pv,
+    ROUND(SUM(t.clk_pv) / NULLIF(SUM(t.expo_pv), 0), 4) AS ctr
+FROM (
+    SELECT 
+        delivery_push_task_id,
+        0 AS expo_pv,
+        COUNT(*) AS clk_pv
+    FROM adm_hk_asap_dwd_push_log_clk_di
+    WHERE dt = '${bizdate}'
+    GROUP BY delivery_push_task_id
+    
+    UNION ALL
+    
+    SELECT 
+        delivery_push_task_id,
+        COUNT(*) AS expo_pv,
+        0 AS clk_pv
+    FROM adm_hk_asap_dwd_push_log_expo_di
+    WHERE dt = '${bizdate}'
+    GROUP BY delivery_push_task_id
+) t
+GROUP BY t.delivery_push_task_id
+```
+
+---
+
+## 五、注意事项
+1. **分区字段**：dt (天分区) 为分区字段，查询时必须指定
+2. **点击定义**：点击定义为用户点击push消息后产生有效跳转行为
+3. **关联维度**：通过 delivery_push_task_id 关联 push 任务核心宽表 `adm_hk_asap_dwd_push_task_info_dd` 获取任务详情
+4. **数据来源**：数据来自埋点系统上报的点击事件

@@ -1,0 +1,2457 @@
+{
+  "domain": "push域",
+  "domain_key": "push",
+  "version": "v1_2_rule_based_from_markdown",
+  "source_dir": "/Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/data/push域表合并",
+  "domain_description": "push域覆盖营销push业务，包含Push消息发送、曝光追踪、点击效果等核心场景。\n业务范围：\n- Push发送效果：发送量、到达量、曝光量、点击量等指标分析\n- Push任务管理：任务创建、生效时间、状态流转等\n- Push文案管理：人工文案、AIGC文案、创意标签等\n- Push渠道区分：机型、环境、业务线等维度分析\n---",
+  "global_rules": {
+    "join_rule": "优先使用 ADS / DWS 汇总表；任务详情使用核心 DWD 宽表；曝光/点击明细按 delivery_push_task_id 关联任务表。",
+    "dt_rule": "所有 push 域查询必须过滤 dt 分区；线上环境优先补充 environment = 'R'。"
+  },
+  "table_list": [
+    {
+      "table_name": "**adm_hk_asap_dwd_push_task_info_dd**",
+      "layer": "DWD",
+      "description": "**push任务明细宽表（核心表）** - 汇总push任务、文案、业务线、行业组织、AIGC文案等所有信息",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 79
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "layer": "DWS",
+      "description": "香港用户-ASAP-push消息-push发送-曝光-点击明细表-慢表",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 79
+      }
+    },
+    {
+      "table_name": "adm_asap_push_aigc_task_running_dd",
+      "layer": "DWD",
+      "description": "AIGC任务running全量表",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 79
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_push_task_info_detail_di",
+      "layer": "DWD",
+      "description": "push发送日志明细表",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 79
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_dwd_push_log_expo_di",
+      "layer": "DWD",
+      "description": "push曝光日志明细表（小时分区）",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 79
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_dwd_push_log_clk_di",
+      "layer": "DWD",
+      "description": "push点击日志明细表（小时分区）",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 79
+      }
+    }
+  ],
+  "tables": [
+    {
+      "table_name": "adm_hk_asap_dwd_push_task_info_dd",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "layer": "DWD（明细层）",
+      "description": "push任务核心宽表，汇总所有任务、文案、业务线、AIGC文案等所有信息",
+      "partition_field": "dt",
+      "join_keys": [
+        "industry_org_id"
+      ],
+      "columns": [
+        {
+          "name": "dt",
+          "cn_name": "日期",
+          "type": "string",
+          "description": "日期；格式: yyyyMMdd   示例：20260322",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "delivery_push_task_id",
+          "cn_name": "push任务ID",
+          "type": "string",
+          "description": "push任务ID；主键   示例：DELIVERY_PUSH_TASK_20260322_001",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "creative_id",
+          "cn_name": "文案ID",
+          "type": "string",
+          "description": "文案ID；外键→antsg_nods.ods_imcdp_static_content   示例：CRM_001",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业组织ID",
+          "type": "string",
+          "description": "行业组织ID；外键→antsg_nods.ods_imcdp_biz_line_org   示例：IO_001",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "push_type",
+          "cn_name": "push类型",
+          "type": "string",
+          "description": "push类型；枚举：PUSH_MARKETING, PUSH_PLATFORM, PUSH_STRATEGY, PUSH_COMMERCIAL, PUSH_EVENT",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "creative_type",
+          "cn_name": "文案类型",
+          "type": "string",
+          "description": "文案类型；枚举：Manual, LLM   示例：LLM",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "status",
+          "cn_name": "任务状态",
+          "type": "string",
+          "description": "任务状态；枚举：INIT, RUNNING, PAUSE, FINISH   示例：RUNNING",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "string",
+          "description": "用户ID；示例：208810217...",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "push_channel_type",
+          "cn_name": "push渠道类型",
+          "type": "string",
+          "description": "push渠道类型；示例：ALIAPP",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境",
+          "type": "string",
+          "description": "环境；枚举：R, P   示例：R",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "business_unit_code",
+          "cn_name": "业务单元编码",
+          "type": "string",
+          "description": "业务单元编码；示例：SG_MAGA_HK",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "biz_line_name_lv1",
+          "cn_name": "一级业务线名称",
+          "type": "string",
+          "description": "一级业务线名称；示例：钱包",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "biz_line_name_lv2",
+          "cn_name": "二级业务线名称",
+          "type": "string",
+          "description": "二级业务线名称；示例：运营",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "biz_line_name_lv3",
+          "cn_name": "三级业务线名称",
+          "type": "string",
+          "description": "三级业务线名称；示例：营销",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业组织名称",
+          "type": "string",
+          "description": "行业组织名称；示例：综测",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "gmt_create",
+          "cn_name": "创建时间",
+          "type": "datetime",
+          "description": "创建时间；示例：2026-03-22 14:30:25",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "gmt_modified",
+          "cn_name": "修改时间",
+          "type": "datetime",
+          "description": "修改时间；示例：2026-03-22 15:00:00",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "call_login",
+          "cn_name": "负责工号",
+          "type": "string",
+          "description": "负责工号；文案负责人工号   示例：zhangsan",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        },
+        {
+          "name": "aigc_text",
+          "cn_name": "AIGC生成文案",
+          "type": "string",
+          "description": "AIGC生成文案；大模型生成的push文案内容   示例：您的钱包余额不足...",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md",
+            "line_start": 21
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    delivery_push_task_id,\n    push_type,\n    creative_type,\n    biz_line_name_lv1,\n    industry_org_name,\n    gmt_create\nFROM adm_hk_asap_dwd_push_task_info_dd\nWHERE dt = '${bizdate}'\n  AND status = 'RUNNING'\n  AND environment = 'R'\n  AND business_unit_code = 'SG_MAGA_HK';",
+        "SELECT \n    biz_line_name_lv1,\n    COUNT(DISTINCT delivery_push_task_id) as task_cnt,\n    COUNT(DISTINCT CASE WHEN creative_type = 'AIGC' THEN delivery_push_task_id END) as aigc_task_cnt\nFROM adm_hk_asap_dwd_push_task_info_dd\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\n  AND business_unit_code = 'SG_MAGA_HK'\nGROUP BY biz_line_name_lv1;",
+        "SELECT \n    creative_type,\n    COUNT(DISTINCT delivery_push_task_id) as task_cnt\nFROM adm_hk_asap_dwd_push_task_info_dd\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\n  AND business_unit_code = 'SG_MAGA_HK'\nGROUP BY creative_type;",
+        "SELECT \n    industry_org_name,\n    COUNT(DISTINCT delivery_push_task_id) as task_cnt\nFROM adm_hk_asap_dwd_push_task_info_dd\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY industry_org_name;"
+      ],
+      "source": {
+        "file": "PUSH域_02_adm_hk_asap_dwd_push_task_info_dd.md"
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "layer": "DWS（明细层）",
+      "description": "push慢表，用于分析push消息的发送曝光及点击转化效果，聚焦慢查询场景",
+      "partition_field": "dt",
+      "join_keys": [
+        "creative_id",
+        "delivery_push_task_id"
+      ],
+      "columns": [
+        {
+          "name": "delivery_push_task_id",
+          "cn_name": "push任务ID",
+          "type": "STRING",
+          "description": "push任务ID；PUSH_TASK_ID20260414100211431",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "delivery_push_task_name",
+          "cn_name": "push任务名称",
+          "type": "STRING",
+          "description": "push任务名称；202604-生活頻道-本地優惠大牌餐飲券-Push",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "industry_org_id",
+          "cn_name": "行业组织ID",
+          "type": "STRING",
+          "description": "行业组织ID；INDUSTRY_ORG_09_CHILL_LIFE_02",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "industry_org_name",
+          "cn_name": "行业组织名称",
+          "type": "STRING",
+          "description": "行业组织名称；数字生活_chill生活",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "creative_id",
+          "cn_name": "文案ID",
+          "type": "STRING",
+          "description": "文案ID；STATIC_CONTENT20260415100532789",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "creative_type",
+          "cn_name": "文案类型",
+          "type": "STRING",
+          "description": "文案类型；Manual, LLM",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "creative_tag",
+          "cn_name": "文案标签",
+          "type": "STRING",
+          "description": "文案标签；精明攻略型",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_time",
+          "cn_name": "发送时间-时间戳",
+          "type": "STRING",
+          "description": "发送时间-时间戳；1776582012260",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_date",
+          "cn_name": "发送时间-东八区",
+          "type": "STRING",
+          "description": "发送时间-东八区；20260419",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "STRING",
+          "description": "用户ID；2160210000005829",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_status",
+          "cn_name": "push任务发送状态",
+          "type": "STRING",
+          "description": "push任务发送状态；SEND_SUCCESS /SEND_FAIL",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_fail_msg",
+          "cn_name": "push任务失败原因",
+          "type": "STRING",
+          "description": "push任务失败原因；ALL_PUSH_TASK_TARGETING_FILTER_NOT_PASS",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_title",
+          "cn_name": "push标题",
+          "type": "STRING",
+          "description": "push标题；��️享受美食前先買張券，即慳超多！即買��",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_sub_title",
+          "cn_name": "push副标题",
+          "type": "STRING",
+          "description": "push副标题；alipayhk://platformapi/startApp?appId=2060090000320265",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_url",
+          "cn_name": "push URL",
+          "type": "STRING",
+          "description": "push URL；alipayhk://platformapi/startApp",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "model",
+          "cn_name": "机型，ANDROID/IOS",
+          "type": "STRING",
+          "description": "机型，ANDROID/IOS；IOS, ANDROID",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_lifecycle",
+          "cn_name": "用户生命周期",
+          "type": "STRING",
+          "description": "用户生命周期；新手期用户,成长期用户,成熟期用户,衰退期用户,流失期用户,沉默期用户",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_value",
+          "cn_name": "用户价值",
+          "type": "STRING",
+          "description": "用户价值；高价值用户,一般价值用户,重点发展用户,一般发展用户,重点保持用户,一般保持用户,重点挽留用户,低价值用户",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_activity_level",
+          "cn_name": "用户活跃分层",
+          "type": "STRING",
+          "description": "用户活跃分层；高频,中频,低频,流失,沉默",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_type",
+          "cn_name": "push类型",
+          "type": "STRING",
+          "description": "push类型；营销Push，平台Push，战略Push，商业化Push,事件push",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_task_start_date",
+          "cn_name": "push任务开始时间",
+          "type": "STRING",
+          "description": "push任务开始时间；2026-04-15 16:00:00.000000",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_task_end_date",
+          "cn_name": "push任务结束时间",
+          "type": "STRING",
+          "description": "push任务结束时间；2026-04-30 15:59:59.000000",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_task_gmt_create",
+          "cn_name": "push任务创建时间",
+          "type": "STRING",
+          "description": "push任务创建时间；2026-04-14 09:26:16.105000",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "is_expo",
+          "cn_name": "是否曝光，1是0否",
+          "type": "BIGINT",
+          "description": "是否曝光，1是0否；0, 1",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "expo_pv",
+          "cn_name": "曝光次数",
+          "type": "BIGINT",
+          "description": "曝光次数；1，2，3",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "is_clk",
+          "cn_name": "是否点击，1是0否",
+          "type": "BIGINT",
+          "description": "是否点击，1是0否；0, 1",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "clk_pv",
+          "cn_name": "点击次数",
+          "type": "BIGINT",
+          "description": "点击次数；1，2，3",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "日期分区",
+          "type": "STRING",
+          "description": "日期分区；20260419",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "is_expo",
+          "cn_name": "是否曝光",
+          "type": "BIGINT",
+          "description": "是否曝光；1/0",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 52
+          }
+        },
+        {
+          "name": "expo_pv",
+          "cn_name": "曝光次数",
+          "type": "BIGINT",
+          "description": "曝光次数；1，3，4",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 52
+          }
+        },
+        {
+          "name": "is_clk",
+          "cn_name": "是否点击",
+          "type": "BIGINT",
+          "description": "是否点击；1/0",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 52
+          }
+        },
+        {
+          "name": "clk_pv",
+          "cn_name": "点击次数",
+          "type": "BIGINT",
+          "description": "点击次数；1，2，3",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md",
+            "line_start": 52
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    delivery_push_task_id,\n    count(1) as send_pv,\n    COUNT(if(is_expo='1',1,null)) AS total_expo_pv,\n    COUNT(if(is_clk='1',1,null)) AS total_clk_pv,\n    COUNT(DISTINCT user_id) AS user_cnt\nFROM adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di\nWHERE dt = '${bizdate}'\nGROUP BY delivery_push_task_id\nORDER BY total_expo DESC",
+        "SELECT  delivery_push_task_id\n        ,COUNT(IF(is_expo = '1', 1, NULL)) AS total_expo_pv\n        ,COUNT(IF(is_clk = '1', 1, NULL)) AS total_clk_pv\n        ,ROUND(COUNT(IF(is_clk = '1', 1, NULL)) / NULLIF(COUNT(IF(is_expo = '1', 1, NULL)), 0), 4) AS ctr\nFROM    anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di\nWHERE   dt = '${bizdate}'\nGROUP BY delivery_push_task_id",
+        "SELECT \n    user_lifecycle,\n    user_value,\n    user_activity_level,\n    COUNT(DISTINCT user_id) AS user_cnt,\n    SUM(is_expo) AS expo_cnt,\n    SUM(is_clk) AS clk_cnt,\n    ROUND(SUM(is_clk) / NULLIF(SUM(is_expo), 0), 4) AS ctr\nFROM adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di\nWHERE dt = '${bizdate}'\nGROUP BY user_lifecycle, user_value, user_activity_level",
+        "SELECT \n    environment,\n    push_channel_type,\n    COUNT(DISTINCT delivery_push_task_id) AS task_cnt,\n    SUM(is_expo) AS expo_cnt,\n    SUM(is_clk) AS clk_cnt,\n    ROUND(SUM(is_clk) / NULLIF(SUM(is_expo), 0), 4) AS ctr\nFROM adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di\nWHERE dt = '${bizdate}'\nGROUP BY environment, push_channel_type"
+      ],
+      "source": {
+        "file": "PUSH域_03_adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di.md"
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_push_task_info_detail_di",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "layer": "DWD（明细层）",
+      "description": "push发送日志明细表，记录每个用户/设备的发送记录",
+      "partition_field": "dt",
+      "join_keys": [
+        "creative_id",
+        "delivery_push_task_id"
+      ],
+      "columns": [
+        {
+          "name": "dt",
+          "cn_name": "日期",
+          "type": "string",
+          "description": "日期；格式: yyyyMMdd   示例：20260322",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "delivery_push_task_id",
+          "cn_name": "push任务ID",
+          "type": "string",
+          "description": "push任务ID；外键→adm_hk_asap_dwd_push_task_info_dd",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户ID",
+          "type": "string",
+          "description": "用户ID；示例：208810217...",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "service_code",
+          "cn_name": "service_code",
+          "type": "string",
+          "description": "service_code；示例：GT_SC_alipayHK_push",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "creative_id",
+          "cn_name": "文案ID",
+          "type": "string",
+          "description": "文案ID；示例：STATIC_CONTENT20260401100483433",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_time",
+          "cn_name": "发送时间",
+          "type": "string",
+          "description": "发送时间；格式：yyyy-MM-dd HH:mm:ss  示例：2026-03-22 14:30:25",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_status",
+          "cn_name": "发送状态",
+          "type": "string",
+          "description": "发送状态；枚举：SEND_SUCCESS, SEND_FAIL   示例：SEND_SUCCESS",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_fail_msg",
+          "cn_name": "失败原因",
+          "type": "string",
+          "description": "失败原因；示例：ALL_PUSH_TASK_TARGETING_FILTER_NOT_PASS",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_title",
+          "cn_name": "文案标题",
+          "type": "string",
+          "description": "文案标题；示例：4月北上！",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_sub_title",
+          "cn_name": "文案副标题",
+          "type": "string",
+          "description": "文案副标题；示例：券立即享$5优惠！",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_url",
+          "cn_name": "文案URL",
+          "type": "string",
+          "description": "文案URL；JSON格式",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "business_unit_code",
+          "cn_name": "业务单元代码",
+          "type": "string",
+          "description": "业务单元代码；示例：SG_MAGA_HK",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "environment",
+          "cn_name": "环境",
+          "type": "string",
+          "description": "环境；枚举：R, P   示例：R",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "msg_id",
+          "cn_name": "msg_id",
+          "type": "string",
+          "description": "msg_id；示例：ASAP_8b1be6f34c98495f1658f31d6b8356fe",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "extend_info",
+          "cn_name": "扩展字段",
+          "type": "string",
+          "description": "扩展字段；JSON格式",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "tnt_id",
+          "cn_name": "租户id",
+          "type": "string",
+          "description": "租户id；示例：ALIPW3HK",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "send_count",
+          "cn_name": "发送次数",
+          "type": "bigint",
+          "description": "发送次数；预存字段，直接 COUNT(calculated)",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 40
+          }
+        },
+        {
+          "name": "send_success_count",
+          "cn_name": "发送成功次数",
+          "type": "bigint",
+          "description": "发送成功次数；WHERE send_status = 'SEND_SUCCESS' COUNT",
+          "value_hints": [
+            "SEND_SUCCESS"
+          ],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 40
+          }
+        },
+        {
+          "name": "send_fail_count",
+          "cn_name": "发送失败次数",
+          "type": "bigint",
+          "description": "发送失败次数；WHERE send_status = 'SEND_FAIL' COUNT",
+          "value_hints": [
+            "SEND_FAIL"
+          ],
+          "source": {
+            "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md",
+            "line_start": 40
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    delivery_push_task_id,\n    send_status,\n    COUNT(*) as send_cnt,\n    COUNT(DISTINCT user_id) as send_uv\nFROM adm_hk_asap_push_task_info_detail_di\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY delivery_push_task_id, send_status;",
+        "SELECT \n    delivery_push_task_id,\n    send_time,\n    send_status,\n    push_title,\n    push_sub_title\nFROM adm_hk_asap_push_task_info_detail_di\nWHERE dt = '${bizdate}'\n  AND user_id = '${user_id}'\n  AND environment = 'R'\nORDER BY send_time DESC;",
+        "SELECT \n    send_status,\n    COUNT(*) as cnt,\n    COUNT(DISTINCT delivery_push_task_id) as task_cnt\nFROM adm_hk_asap_push_task_info_detail_di\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY send_status;",
+        "SELECT \n    delivery_push_task_id,\n    COUNT(*) as total_send,\n    SUM(CASE WHEN send_status = 'SEND_SUCCESS' THEN 1 ELSE 0 END) as success_count,\n    ROUND(SUM(CASE WHEN send_status = 'SEND_SUCCESS' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as success_rate\nFROM adm_hk_asap_push_task_info_detail_di\nWHERE dt = '${bizdate}'\n  AND environment = 'R'\nGROUP BY delivery_push_task_id;"
+      ],
+      "source": {
+        "file": "PUSH域_04_adm_hk_asap_push_task_info_detail_di.md"
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_dwd_push_log_expo_di",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "layer": "DWD（明细层）",
+      "description": "push域曝光日志明细表，用于分析push消息的曝光效果",
+      "partition_field": "dt",
+      "join_keys": [
+        "creative_id",
+        "delivery_push_task_id"
+      ],
+      "columns": [
+        {
+          "name": "loged_time",
+          "cn_name": "上传服务器记录时间",
+          "type": "string",
+          "description": "上传服务器记录时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "log_time",
+          "cn_name": "客户端日志时间",
+          "type": "string",
+          "description": "客户端日志时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "alipay_product_id",
+          "cn_name": "产品ID",
+          "type": "string",
+          "description": "产品ID；WALLET_HK_ANDROID,WALLET_HK_IOS",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "alipay_product_version",
+          "cn_name": "产品版本",
+          "type": "string",
+          "description": "产品版本；10.3.96, 9.8.0",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "tcid",
+          "cn_name": "设备id",
+          "type": "string",
+          "description": "设备id；460000000000000\\",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "session_id",
+          "cn_name": "会话id",
+          "type": "string",
+          "description": "会话id；307B7E2F-AD1D-407B-AD48-8F6EB14B8D26",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户id(2088开头)",
+          "type": "string",
+          "description": "用户id(2088开头)；2088222168756612",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "behaviorid",
+          "cn_name": "行为id(exposure)",
+          "type": "string",
+          "description": "行为id(exposure)；exposure",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm",
+          "cn_name": "曝光点的spm",
+          "type": "string",
+          "description": "曝光点的spm；a1.b2.c3.d4",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_a",
+          "cn_name": "曝光点spm的a位",
+          "type": "string",
+          "description": "曝光点spm的a位；a1",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_b",
+          "cn_name": "曝光点spm的b位",
+          "type": "string",
+          "description": "曝光点spm的b位；b2",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_c",
+          "cn_name": "曝光点spm的c位",
+          "type": "string",
+          "description": "曝光点spm的c位；c3",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_d",
+          "cn_name": "曝光点spm的d位",
+          "type": "string",
+          "description": "曝光点spm的d位；d4",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "utdid",
+          "cn_name": "utdid",
+          "type": "string",
+          "description": "utdid；ZdKwcV9lBtsDAEQ5OubWwsdY",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "device_model",
+          "cn_name": "设备号",
+          "type": "string",
+          "description": "设备号；iPhone16 2",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "os_version",
+          "cn_name": "操作系统版本",
+          "type": "string",
+          "description": "操作系统版本；17.6.1",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "network",
+          "cn_name": "网络",
+          "type": "string",
+          "description": "网络；LTE\\",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "language",
+          "cn_name": "语言",
+          "type": "string",
+          "description": "语言；zh-CN, en",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip",
+          "cn_name": "ip",
+          "type": "string",
+          "description": "ip；192.168.1.1, 114.114...",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip_country",
+          "cn_name": "从ip中解析出来的国家名称",
+          "type": "string",
+          "description": "从ip中解析出来的国家名称；中国，USA",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip_province",
+          "cn_name": "从ip中解析出来的省份名称",
+          "type": "string",
+          "description": "从ip中解析出来的省份名称；浙江省，California",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip_city",
+          "cn_name": "从ip中解析出来的城市名称",
+          "type": "string",
+          "description": "从ip中解析出来的城市名称；杭州市，San Francisco",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "log_type",
+          "cn_name": "日志来源渠道",
+          "type": "string",
+          "description": "日志来源渠道；native, h5, cashier",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "experiment_ids",
+          "cn_name": "ABTest的实验id",
+          "type": "string",
+          "description": "ABTest的实验id；exp_12345_groupB",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "msg_id",
+          "cn_name": "ifcgotone的msgId",
+          "type": "string",
+          "description": "ifcgotone的msgId；2025072319117160175327073143434113170539031700053",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "delivery_push_task_id",
+          "cn_name": "push任务ID",
+          "type": "string",
+          "description": "push任务ID；外键→adm_hk_asap_dwd_push_task_info_dd\n示例：PUSH_TASK_ID20250723100019439",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "service_code",
+          "cn_name": "service code",
+          "type": "string",
+          "description": "service code；GT_SC_alipayHK_push",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "creative_id",
+          "cn_name": "文案ID",
+          "type": "string",
+          "description": "文案ID；STATIC_CONTENT20250723100037930",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_title",
+          "cn_name": "push的标题",
+          "type": "string",
+          "description": "push的标题；�� 只差一步！完成認證即可享有更多福利",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_sub_title",
+          "cn_name": "push的文本",
+          "type": "string",
+          "description": "push的文本；快啲嚟解鎖專屬禮遇！立即認證 >",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_url",
+          "cn_name": "push的uri,json格式",
+          "type": "string",
+          "description": "push的uri,json格式",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "时间分区",
+          "type": "string",
+          "description": "时间分区；20260327",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md",
+            "line_start": 20
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    dt,\n    COUNT(*) AS expo_pv,\n    COUNT(DISTINCT user_id) AS expo_uv\nFROM adm_hk_asap_dwd_push_log_expo_di\nWHERE dt = '${bizdate}'\nGROUP BY dt",
+        "SELECT \n    delivery_push_task_id,\n    COUNT(*) AS expo_pv,\n    COUNT(DISTINCT user_id) AS expo_uv\nFROM adm_hk_asap_dwd_push_log_expo_di\nWHERE dt = '${bizdate}'\nGROUP BY delivery_push_task_id",
+        "SELECT \n    push_channel,\n    COUNT(*) AS expo_pv,\n    COUNT(DISTINCT user_id) AS expo_uv\nFROM adm_hk_asap_dwd_push_log_expo_di\nWHERE dt = '${bizdate}'\nGROUP BY push_channel"
+      ],
+      "source": {
+        "file": "PUSH域_05_adm_hk_asap_dwd_push_log_expo_di.md"
+      }
+    },
+    {
+      "table_name": "adm_hk_asap_dwd_push_log_clk_di",
+      "database": "antsg_anthk_sg",
+      "full_name": "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di",
+      "layer": "DWD（明细层）",
+      "description": "push域点击日志明细表，用于分析push消息的点击转化效果",
+      "partition_field": "dt",
+      "join_keys": [
+        "creative_id",
+        "delivery_push_task_id"
+      ],
+      "columns": [
+        {
+          "name": "loged_time",
+          "cn_name": "上传服务器记录时间",
+          "type": "string",
+          "description": "上传服务器记录时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "log_time",
+          "cn_name": "客户端日志时间",
+          "type": "string",
+          "description": "客户端日志时间；2026-03-22 18:27:24.675",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "alipay_product_id",
+          "cn_name": "产品ID",
+          "type": "string",
+          "description": "产品ID；WALLET_HK_ANDROID,WALLET_HK_IOS",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "alipay_product_version",
+          "cn_name": "产品版本",
+          "type": "string",
+          "description": "产品版本；10.3.96, 9.8.0",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "tcid",
+          "cn_name": "设备id",
+          "type": "string",
+          "description": "设备id；460000000000000\\",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "session_id",
+          "cn_name": "会话id",
+          "type": "string",
+          "description": "会话id；307B7E2F-AD1D-407B-AD48-8F6EB14B8D26",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "user_id",
+          "cn_name": "用户id(2088开头)",
+          "type": "string",
+          "description": "用户id(2088开头)；208810217...",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "behaviorid",
+          "cn_name": "行为id(clicked)",
+          "type": "string",
+          "description": "行为id(clicked)；clicked",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm",
+          "cn_name": "当前点击的spm",
+          "type": "string",
+          "description": "当前点击的spm；a1.b2.c3.d4",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_a",
+          "cn_name": "当前点击spm的a位",
+          "type": "string",
+          "description": "当前点击spm的a位；a1",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_b",
+          "cn_name": "当前点击spm的b位",
+          "type": "string",
+          "description": "当前点击spm的b位；b2",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_c",
+          "cn_name": "当前点击spm的c位",
+          "type": "string",
+          "description": "当前点击spm的c位；c3",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "spm_d",
+          "cn_name": "当前点击spm的d位",
+          "type": "string",
+          "description": "当前点击spm的d位；d4",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "utdid",
+          "cn_name": "utdid",
+          "type": "string",
+          "description": "utdid；ZdKwcV9lBtsDAEQ5OubWwsdY",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "device_model",
+          "cn_name": "设备号",
+          "type": "string",
+          "description": "设备号；iPhone16 2",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "os_version",
+          "cn_name": "操作系统版本",
+          "type": "string",
+          "description": "操作系统版本；17.6.1",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "network",
+          "cn_name": "网络",
+          "type": "string",
+          "description": "网络；LTE\\",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "language",
+          "cn_name": "语言",
+          "type": "string",
+          "description": "语言；zh-CN, en",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip",
+          "cn_name": "ip",
+          "type": "string",
+          "description": "ip；192.168.1.1, 114.114...",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip_country",
+          "cn_name": "从ip中解析出来的国家名称",
+          "type": "string",
+          "description": "从ip中解析出来的国家名称；中国, USA",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip_province",
+          "cn_name": "从ip中解析出来的省份名称",
+          "type": "string",
+          "description": "从ip中解析出来的省份名称；浙江省, California",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "ip_city",
+          "cn_name": "从ip中解析出来的城市名称",
+          "type": "string",
+          "description": "从ip中解析出来的城市名称；杭州市, San Francisco",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "log_type",
+          "cn_name": "日志来源渠道",
+          "type": "string",
+          "description": "日志来源渠道；native, h5, cashier",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "experiment_ids",
+          "cn_name": "ABTest的experimentIds",
+          "type": "string",
+          "description": "ABTest的experimentIds；exp_12345_groupB",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "msg_id",
+          "cn_name": "ifcgotone的msgId",
+          "type": "string",
+          "description": "ifcgotone的msgId；2025072319117160175327073143434113170539031700053",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "delivery_push_task_id",
+          "cn_name": "push任务ID",
+          "type": "string",
+          "description": "push任务ID；外键→adm_hk_asap_dwd_push_task_info_dd\n示例：PUSH_TASK_ID20250723100019439",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "service_code",
+          "cn_name": "service code",
+          "type": "string",
+          "description": "service code；GT_SC_alipayHK_push",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "creative_id",
+          "cn_name": "文案ID",
+          "type": "string",
+          "description": "文案ID；STATIC_CONTENT20250723100037930",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_title",
+          "cn_name": "push的标题",
+          "type": "string",
+          "description": "push的标题；�� 只差一步！完成認證即可享有更多福利",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_sub_title",
+          "cn_name": "push的文本",
+          "type": "string",
+          "description": "push的文本；快啲嚟解鎖專屬禮遇！立即認證 >",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "push_url",
+          "cn_name": "push的uri,json格式",
+          "type": "string",
+          "description": "push的uri,json格式",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        },
+        {
+          "name": "dt",
+          "cn_name": "时间分区",
+          "type": "string",
+          "description": "时间分区；20260327",
+          "value_hints": [],
+          "source": {
+            "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md",
+            "line_start": 20
+          }
+        }
+      ],
+      "examples": [
+        "SELECT \n    dt,\n    COUNT(*) AS clk_pv,\n    COUNT(DISTINCT user_id) AS clk_uv\nFROM adm_hk_asap_dwd_push_log_clk_di\nWHERE dt = '${bizdate}'\nGROUP BY dt",
+        "SELECT \n    delivery_push_task_id,\n    COUNT(*) AS total_clk,\n    COUNT(DISTINCT user_id) AS clk_uv\nFROM adm_hk_asap_dwd_push_log_clk_di\nWHERE dt = '${bizdate}'\nGROUP BY delivery_push_task_id\nORDER BY total_clk DESC",
+        "SELECT \n    push_channel,\n    COUNT(*) AS clk_pv,\n    COUNT(DISTINCT user_id) AS clk_uv\nFROM adm_hk_asap_dwd_push_log_clk_di\nWHERE dt = '${bizdate}'\nGROUP BY push_channel",
+        "SELECT \n    t.delivery_push_task_id,\n    SUM(t.expo_pv) AS expo_pv,\n    SUM(t.clk_pv) AS clk_pv,\n    ROUND(SUM(t.clk_pv) / NULLIF(SUM(t.expo_pv), 0), 4) AS ctr\nFROM (\n    SELECT \n        delivery_push_task_id,\n        0 AS expo_pv,\n        COUNT(*) AS clk_pv\n    FROM adm_hk_asap_dwd_push_log_clk_di\n    WHERE dt = '${bizdate}'\n    GROUP BY delivery_push_task_id\n    \n    UNION ALL\n    \n    SELECT \n        delivery_push_task_id,\n        COUNT(*) AS expo_pv,\n        0 AS clk_pv\n    FROM adm_hk_asap_dwd_push_log_expo_di\n    WHERE dt = '${bizdate}'\n    GROUP BY delivery_push_task_id\n) t\nGROUP BY t.delivery_push_task_id"
+      ],
+      "source": {
+        "file": "PUSH域_06_adm_hk_asap_dwd_push_log_clk_di.md"
+      }
+    }
+  ],
+  "business_terms": [
+    {
+      "term": "营销Push",
+      "sql": "push_type = 'PUSH_MARKETING'",
+      "field": "push_type",
+      "mapped_value": "PUSH_MARKETING",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 165
+      }
+    },
+    {
+      "term": "平台Push",
+      "sql": "push_type = 'PUSH_PLATFORM'",
+      "field": "push_type",
+      "mapped_value": "PUSH_PLATFORM",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 165
+      }
+    },
+    {
+      "term": "策略Push",
+      "sql": "push_type = 'PUSH_STRATEGY'",
+      "field": "push_type",
+      "mapped_value": "PUSH_STRATEGY",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 165
+      }
+    },
+    {
+      "term": "商业化Push",
+      "sql": "push_type = 'PUSH_COMMERCIAL'",
+      "field": "push_type",
+      "mapped_value": "PUSH_COMMERCIAL",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 165
+      }
+    },
+    {
+      "term": "事件Push",
+      "sql": "push_type = 'PUSH_EVENT'",
+      "field": "push_type",
+      "mapped_value": "PUSH_EVENT",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 165
+      }
+    },
+    {
+      "term": "人工文案",
+      "sql": "creative_type = 'MANUAL / 空'",
+      "field": "creative_type",
+      "mapped_value": "MANUAL / 空",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 175
+      }
+    },
+    {
+      "term": "AIGC文案",
+      "sql": "creative_type = 'LLM / AIGC'",
+      "field": "creative_type",
+      "mapped_value": "LLM / AIGC",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 175
+      }
+    },
+    {
+      "term": "大模型文案",
+      "sql": "creative_type = 'LLM / AIGC'",
+      "field": "creative_type",
+      "mapped_value": "LLM / AIGC",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 175
+      }
+    },
+    {
+      "term": "规则引擎",
+      "sql": "creative_type = 'RULE'",
+      "field": "creative_type",
+      "mapped_value": "RULE",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 175
+      }
+    },
+    {
+      "term": "标签引擎",
+      "sql": "creative_type = 'LABEL'",
+      "field": "creative_type",
+      "mapped_value": "LABEL",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 175
+      }
+    },
+    {
+      "term": "利益导向",
+      "sql": "creative_tag = 'Benefit_Oriented'",
+      "field": "creative_tag",
+      "mapped_value": "Benefit_Oriented",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 185
+      }
+    },
+    {
+      "term": "情感导向",
+      "sql": "creative_tag = 'Emotion_Oriented'",
+      "field": "creative_tag",
+      "mapped_value": "Emotion_Oriented",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 185
+      }
+    },
+    {
+      "term": "紧急导向",
+      "sql": "creative_tag = 'Urgency_Oriented'",
+      "field": "creative_tag",
+      "mapped_value": "Urgency_Oriented",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 185
+      }
+    },
+    {
+      "term": "任务初始",
+      "sql": "status = 'INIT'",
+      "field": "status",
+      "mapped_value": "INIT",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 193
+      }
+    },
+    {
+      "term": "任务运行中/生效中",
+      "sql": "status = 'RUNNING'",
+      "field": "status",
+      "mapped_value": "RUNNING",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 193
+      }
+    },
+    {
+      "term": "任务暂停",
+      "sql": "status = 'PAUSE'",
+      "field": "status",
+      "mapped_value": "PAUSE",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 193
+      }
+    },
+    {
+      "term": "任务完成",
+      "sql": "status = 'FINISH'",
+      "field": "status",
+      "mapped_value": "FINISH",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 193
+      }
+    },
+    {
+      "term": "自动触发",
+      "sql": "push_trigger_type = 'auto'",
+      "field": "push_trigger_type",
+      "mapped_value": "auto",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 202
+      }
+    },
+    {
+      "term": "人工触发",
+      "sql": "push_trigger_type = 'manual'",
+      "field": "push_trigger_type",
+      "mapped_value": "manual",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 202
+      }
+    },
+    {
+      "term": "算法触发",
+      "sql": "push_trigger_type = 'alg'",
+      "field": "push_trigger_type",
+      "mapped_value": "alg",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 202
+      }
+    },
+    {
+      "term": "生产环境",
+      "sql": "environment = 'R'",
+      "field": "environment",
+      "mapped_value": "R",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 228
+      }
+    },
+    {
+      "term": "预发环境",
+      "sql": "environment = 'P'",
+      "field": "environment",
+      "mapped_value": "P",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 228
+      }
+    },
+    {
+      "term": "今天 / 昨天",
+      "sql": "dt = '${bizdate}'",
+      "field": "",
+      "mapped_value": "dt = '${bizdate}'",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 235
+      }
+    },
+    {
+      "term": "最近7天",
+      "sql": "dt >= DATE_FORMAT(DATEADD('{bizdate}', -6, 'dd'), 'yyyyMMdd') AND dt <= '{bizdate}'",
+      "field": "",
+      "mapped_value": "dt >= DATE_FORMAT(DATEADD('{bizdate}', -6, 'dd'), 'yyyyMMdd') AND dt <= '{bizdate}'",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 235
+      }
+    },
+    {
+      "term": "过去30天",
+      "sql": "dt >= DATE_FORMAT(DATEADD('{bizdate}', -29, 'dd'), 'yyyyMMdd') AND dt <= '{bizdate}'",
+      "field": "",
+      "mapped_value": "dt >= DATE_FORMAT(DATEADD('{bizdate}', -29, 'dd'), 'yyyyMMdd') AND dt <= '{bizdate}'",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 235
+      }
+    }
+  ],
+  "concepts": [
+    {
+      "concept": "Push任务",
+      "en_name": "Push Task",
+      "description": "push任务，控制投放时间、范围、内容等",
+      "related_table": "**adm_hk_asap_dwd_push_task_info_dd** (核心DWD宽表，汇总所有任务、文案、业务线、行业组织、AIGC文案等所有信息)",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    },
+    {
+      "concept": "Push文案",
+      "en_name": "Creative",
+      "description": "push文案，包含标题、副标题、URL等",
+      "related_table": "antsg_nods.ods_imcdp_static_content",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    },
+    {
+      "concept": "Push发送",
+      "en_name": "Push Send",
+      "description": "消息发送到设备",
+      "related_table": "anthk_sg.dwd_intl_gloc_hk_push_out_history_750_dd",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    },
+    {
+      "concept": "Push曝光",
+      "en_name": "Push Exposure",
+      "description": "消息在设备上展示",
+      "related_table": "anthk_sg.dwd_evt_hk_app_log_exposure_di",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    },
+    {
+      "concept": "Push点击",
+      "en_name": "Push Click",
+      "description": "用户点击push消息",
+      "related_table": "anthk_sg.dwd_evt_hk_app_log_clk_di",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    },
+    {
+      "concept": "业务线",
+      "en_name": "Business Line",
+      "description": "业务分类维度，用于组织投放资源",
+      "related_table": "antsg_nods.ods_imcdp_biz_line_org",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    },
+    {
+      "concept": "AIGC文案",
+      "en_name": "AIGC Creative",
+      "description": "大模型生成的push文案",
+      "related_table": "ods_imcdp_static_content.extend_info.llmPushTextParam",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 23
+      }
+    }
+  ],
+  "table_selection_rules": [
+    {
+      "scenario": "查发送量/曝光量/点击量/CTR等聚合指标（任务维度）",
+      "table": "**ADS** adm_hk_asap_push_task_info_fast/slow_ds",
+      "reason": "已按天汇总，性能最优",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 94
+      }
+    },
+    {
+      "scenario": "查push任务详情/文案信息/任务状态/业务线",
+      "table": "**DWD** adm_hk_asap_dwd_push_task_info_dd",
+      "reason": "核心宽表，包含所有维度信息；业务线作为关键的组织维度，包含一级、二级、三级等多级结构",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 94
+      }
+    },
+    {
+      "scenario": "需要用户级（单个用户）的发送/曝光/点击明细",
+      "table": "**DWS** adm_hk_asap_dwd_push_send_expo_clk_detail_fast/slow_di",
+      "reason": "汇总层有用户级数据",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 94
+      }
+    },
+    {
+      "scenario": "AIGC任务分析（running状态/任务类型）",
+      "table": "**DWD** adm_asap_push_aigc_task_running_dd",
+      "reason": "专用AIGC任务表",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 94
+      }
+    },
+    {
+      "scenario": "AIGC流量分析（累计指标/创意效果对比）",
+      "table": "**ADS** adm_asap_push_aigc_trfc_analysis_di",
+      "reason": "专用AIGC流量表",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 94
+      }
+    },
+    {
+      "scenario": "曝光/点击日志明细分析",
+      "table": "**DWD** adm_hk_asap_dwd_push_log_expo_di / log_clk_di",
+      "reason": "明细层日志表",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 94
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "name": "发送量PV",
+      "expression": "SUM(send_cnt_pv)",
+      "description": "push消息发送总数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "发送成功量PV",
+      "expression": "SUM(send_success_cnt_pv)",
+      "description": "push成功发送到设备数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "曝光量PV",
+      "expression": "SUM(exposure_pv)",
+      "description": "push消息在设备上的展示次数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "点击量PV",
+      "expression": "SUM(click_pv)",
+      "description": "用户点击push消息次数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "发送量UV",
+      "expression": "SUM(send_cnt_uv)",
+      "description": "发送给不同用户的数量",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "曝光量UV",
+      "expression": "SUM(exposure_uv)",
+      "description": "不同用户看到push消息的数量",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "点击量UV",
+      "expression": "SUM(click_uv)",
+      "description": "不同用户点击push消息的数量",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "PV CTR",
+      "expression": "SUM(click_pv) / NULLIF(SUM(exposure_pv), 0)",
+      "description": "点击PV / 曝光PV，保留4位小数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "UV CTR",
+      "expression": "SUM(click_uv) / NULLIF(SUM(exposure_uv), 0)",
+      "description": "点击UV / 曝光UV，保留4位小数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 126
+      }
+    },
+    {
+      "name": "总任务数",
+      "expression": "COUNT(DISTINCT delivery_push_task_id)",
+      "description": "push任务总数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 143
+      }
+    },
+    {
+      "name": "运行中任务数",
+      "expression": "COUNT(DISTINCT CASE WHEN status = 'RUNNING' THEN delivery_push_task_id END)",
+      "description": "当前运行中的任务数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 143
+      }
+    },
+    {
+      "name": "按业务线统计",
+      "expression": "COUNT(DISTINCT CASE WHEN biz_line_code_lv1 = 'xxx' THEN delivery_push_task_id END)",
+      "description": "按一级业务线统计任务数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 143
+      }
+    },
+    {
+      "name": "用户级曝光计数",
+      "expression": "SUM(expo_count)",
+      "description": "某用户某任务的曝光次数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 154
+      }
+    },
+    {
+      "name": "用户级点击计数",
+      "expression": "SUM(clk_count)",
+      "description": "某用户某任务的点击次数",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 154
+      }
+    },
+    {
+      "name": "用户级CTR",
+      "expression": "SUM(clk_count) / NULLIF(SUM(expo_count), 0)",
+      "description": "用户级点击率",
+      "source": {
+        "file": "push域_Schema_总览.md",
+        "line_start": 154
+      }
+    }
+  ],
+  "examples": [
+    "-- 按一级业务线统计任务数和运行中任务数\nSELECT \n    dt\n        ,biz_line_name_lv1\n        ,COUNT(DISTINCT delivery_push_task_id) AS total_task_cnt\n        ,COUNT(DISTINCT CASE WHEN status = 'RUNNING' THEN delivery_push_task_id END) AS running_task_cnt\nFROM    adm_hk_asap_dwd_push_task_info_dd\nWHERE   dt = '${bizdate}'\nAND     environment = 'R'\nAND     business_unit_code = 'SG_MAGA_HK'\nGROUP BY dt\n        ,biz_line_name_lv1\nORDER BY total_task_cnt DESC;",
+    "-- 统计一级、二级、三级业务线下的任务分布\nSELECT \n    dt,\n        biz_line_name_lv1,\n        biz_line_name_lv2,\n        biz_line_name_lv3,\n        COUNT(DISTINCT delivery_push_task_id) AS task_cnt,\n        COUNT(DISTINCT CASE WHEN creative_type = 'AIGC' THEN delivery_push_task_id END) AS aigc_task_cnt\nFROM    adm_hk_asap_dwd_push_task_info_dd\nWHERE   dt = '${bizdate}'\nAND     environment = 'R'\nAND     business_unit_code = 'SG_MAGA_HK'\nGROUP BY dt\n        ,biz_line_name_lv1\n        ,biz_line_name_lv2\n        ,biz_line_name_lv3\nORDER BY task_cnt DESC;",
+    "SELECT  dt\n        ,biz_line_name_lv1\n        ,SUM(send_cnt_pv)                  AS send_total_pv\n        ,SUM(send_success_cnt_pv)           AS send_success_pv\n        ,SUM(exposure_pv)                  AS exposure_total_pv\n        ,SUM(click_pv)                     AS click_total_pv\n        ,ROUND(SUM(click_pv) / NULLIF(SUM(exposure_pv), 0), 4) AS pv_ctr\n        ,SUM(send_cnt_uv)                  AS send_total_uv\n        ,SUM(exposure_uv)                  AS exposure_total_uv\n        ,SUM(click_uv)                     AS click_total_uv\n        ,ROUND(SUM(click_uv) / NULLIF(SUM(exposure_uv), 0), 4) AS uv_ctr\nFROM    adm_hk_asap_push_task_info_fast_ds\nWHERE   dt = '${bizdate}'\n  AND     environment = 'R'\nGROUP BY dt\n        ,biz_line_name_lv1\nORDER BY click_total_pv DESC;",
+    "-- 分析各业务线的AIGC任务占比、创新情况\nSELECT \n    biz_line_name_lv1,\n    COUNT(DISTINCT delivery_push_task_id)                     AS total_task_cnt,\n    SUM(CASE WHEN creative_type = 'AIGC' THEN 1 ELSE 0 END)        AS aigc_task_cnt,\n    ROUND(aigc_task_cnt * 1.0 / NULLIF(total_task_cnt, 0), 4) AS aigc_task_ratio\nFROM    adm_hk_asap_dwd_push_task_info_dd\nWHERE   dt = '${bizdate}'\nAND     environment = 'R'\nGROUP BY biz_line_name_lv1\nORDER BY total_task_cnt DESC;"
+  ],
+  "field_index": {
+    "dt": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "delivery_push_task_id": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "creative_id": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "industry_org_id": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "push_type": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "creative_type": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "status": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "user_id": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "push_channel_type": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "environment": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "business_unit_code": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "biz_line_name_lv1": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "biz_line_name_lv2": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "biz_line_name_lv3": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "industry_org_name": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "gmt_create": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "gmt_modified": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "call_login": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "aigc_text": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_task_info_dd"
+    ],
+    "delivery_push_task_name": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "creative_tag": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "send_time": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "send_date": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "send_status": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "send_fail_msg": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "push_title": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "push_sub_title": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "push_url": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "model": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "user_lifecycle": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "user_value": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "user_activity_level": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "push_task_start_date": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "push_task_end_date": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "push_task_gmt_create": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "is_expo": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "expo_pv": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "is_clk": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "clk_pv": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_send_expo_clk_detail_slow_di"
+    ],
+    "service_code": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "msg_id": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "extend_info": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "tnt_id": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "send_count": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "send_success_count": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "send_fail_count": [
+      "antsg_anthk_sg.adm_hk_asap_push_task_info_detail_di"
+    ],
+    "loged_time": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "log_time": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "alipay_product_id": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "alipay_product_version": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "tcid": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "session_id": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "behaviorid": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "spm": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "spm_a": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "spm_b": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "spm_c": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "spm_d": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "utdid": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "device_model": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "os_version": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "network": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "language": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "ip": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "ip_country": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "ip_province": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "ip_city": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "log_type": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ],
+    "experiment_ids": [
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_expo_di",
+      "antsg_anthk_sg.adm_hk_asap_dwd_push_log_clk_di"
+    ]
+  }
+}

@@ -1,9 +1,54 @@
 # Local Text-to-SQL Agent Guide
 
-这份文档面向两个场景：
+这份文档面向四个场景：
 
 1. 在一台新的机器上，从 git 拉代码、配置 SQLite 和 API、跑通整个流程。
 2. 后续需要接更多 LLM API 来源时，知道该改哪里。
+3. 在画像域业务评测集上调试 V1.0 `profile_agent.py` baseline。
+4. 理解 V1.1/V1.2 线上化重构的目录、配置和运行方式。
+
+版本口径：
+
+- V1.0：当前画像域单域 baseline，已跑通 registry、summary、SQL generation、validator、selector、report。
+- V1.1：线上化工程重构已完成，详见 [ONLINE_TEXT2SQL_REFACTOR_PLAN.md](/Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/methods/ReFoRCE/ONLINE_TEXT2SQL_REFACTOR_PLAN.md)。
+- V1.2：当前阶段多域知识与路由增强，接入画像域、投放域、push 域 registry，并使用 LLM router 做主题域解析。
+
+线上链路新入口：
+
+```bash
+cd /Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/methods/ReFoRCE
+python3 online_profile_agent.py --limit 1 --no-selector
+```
+
+默认节点级模型配置：
+
+```text
+configs/online_agent_v1_2.json
+```
+
+当前默认：summary / router / clarifier / date_adjuster / llm_validator 使用 `moonshot-v1-128k`；SQL generation / selector 使用 simpleai Claude。
+
+V1.2 多域 registry 构建：
+
+```bash
+python3 build_domain_registry.py --domain marketing
+python3 build_domain_registry.py --domain push
+```
+
+输出位置：
+
+```text
+data/domain_registries/
+```
+
+V1.2 router smoke 示例：
+
+```bash
+python3 online_profile_agent.py --question '昨天push任务的打开率是多少' --output-dir output/online-v1_2-router-push-smoke --no-selector
+python3 online_profile_agent.py --question '首页feeds昨天曝光点击量是多少' --output-dir output/online-v1_2-router-marketing-smoke --no-selector
+```
+
+当前非画像域只返回 `domain_only` 路由结果，不继续生成 SQL。
 
 ## 1. 从零开始拉起一个新环境
 
@@ -77,6 +122,7 @@ MOONSHOT_API_KEY=your-moonshot-api-key
 SIMPLEAI_BASE_URL=https://key.simpleai.com.cn/v1
 SIMPLEAI_API_KEY=your-simpleai-api-key
 
+LLM_PROVIDER=simpleai
 PYTHON_BIN=/path/to/your/python
 ```
 
@@ -91,6 +137,7 @@ PYTHON_BIN=/path/to/your/python
 如果你要通过 `simpleai` 调 Claude，可以这样配：
 
 ```bash
+LLM_PROVIDER=simpleai
 SIMPLEAI_BASE_URL=https://key.simpleai.com.cn/v1
 SIMPLEAI_API_KEY=your-simpleai-key
 ```
@@ -110,7 +157,37 @@ LLM_MODEL=claude-sonnet-4-6
 LLM_MODEL=claude-haiku-4-5-20251001
 ```
 
-### 1.5 配置运行参数
+### 1.5 画像域业务资产
+
+当前画像域链路的原始业务文档采用新的目录命名：
+
+- `data/文档二_画像域Text2SQL评测集.md`
+- `data/画像域表合并/`
+
+`data/profile_eval/` 不是人工维护目录，而是由 [profile_build_assets.py](/Users/ying/Documents/Codex/truly_text2sql/text2sql_ReForce/methods/ReFoRCE/profile_build_assets.py) 从上述 markdown 生成的中间资产：
+
+- `profile_text2sql_eval.jsonl`：30 条评测集结构化结果。
+- `profile_schema_registry.json`：画像域 schema registry。
+- `profile_compact_context.md`：给 prompt 使用的压缩上下文。
+- `profile_schema_registry_build_log.md`：抽取日志。
+
+如果原始 markdown 更新，先重建资产：
+
+```bash
+cd /path/to/text2sql_ReForce/methods/ReFoRCE
+python3 profile_build_assets.py
+```
+
+当前重建结果应大致为：
+
+```text
+eval_count=30
+table_count=4
+field_count=301
+unresolved_ref_count=0
+```
+
+### 1.6 配置运行参数
 
 主要运行参数放在：
 
@@ -155,7 +232,7 @@ ADD_TIMESTAMP=true
 output/<model>-lite-sqlite-<thinking-or-not>-limit<TASK_LIMIT>-offset<TASK_OFFSET>-YYYYMMDD-HHMMSS
 ```
 
-### 1.6 先跑一个本地 smoke test
+### 1.7 先跑一个本地 smoke test
 
 这个 smoke test 不依赖 Spider2-Lite 数据库，适合先验证 API 和代码链路是否通。
 
@@ -177,7 +254,7 @@ python3 -B run_local_demo.py --mock
 python3 -B run_local_demo.py --model "$LLM_MODEL"
 ```
 
-### 1.7 跑通 Lite SQLite 全链路
+### 1.8 跑通 Lite SQLite 全链路
 
 当 `.env`、`config.env`、SQLite 数据库都准备好之后，直接运行：
 
@@ -202,7 +279,7 @@ bash scripts/run_lite_sqlite.sh
 output/<你的输出名>-YYYYMMDD-HHMMSS
 ```
 
-### 1.8 评测结果
+### 1.9 评测结果
 
 跑完后，用下面的命令评测：
 
@@ -218,13 +295,76 @@ bash scripts/run_eval.sh --task lite --log_folder output/moonshot-v1-128k-lite-s
 
 ## 2. 常用运行方式
 
-### 2.1 只跑几条快速验证
+### 2.1 跑 V1.0 画像域 profile baseline
+
+V1.0 画像域链路不依赖 Spider2 SQLite 数据库，主要依赖 `openai` SDK、`.env` 中的 provider 配置，以及 `data/profile_eval/` 资产。
+
+先跑小样本：
+
+```bash
+cd /path/to/text2sql_ReForce/methods/ReFoRCE
+python3 profile_agent.py \
+  --sample-ids U001,U002,U003 \
+  --num-candidates 2 \
+  --use-selector \
+  --model claude-opus-4-6 \
+  --temperature 0.6 \
+  --output-dir output/profile-smoke-simpleai-u001-u003
+```
+
+跑 30 条 baseline：
+
+```bash
+python3 profile_agent.py \
+  --limit 30 \
+  --offset 0 \
+  --num-candidates 2 \
+  --use-selector \
+  --model claude-opus-4-6 \
+  --temperature 0.6 \
+  --output-dir output/profile-baseline-simpleai-30
+```
+
+生成静态报告：
+
+```bash
+python3 profile_baseline_report.py \
+  --run-dir output/profile-baseline-simpleai-30
+```
+
+当前已知 baseline 状态：
+
+- 基于旧 `profile_eval` 跑出的 30 条报告为 `pass 9 / fail 21`。
+- 重建新 `profile_eval` 并补齐通用 `user_id` 后，对同一批 SQL 重新静态校验为 `pass 13 / warning 7 / fail 10`。
+- 剩余失败主要集中在空 SQL 输出、CTE / 子查询别名解析不足、JOIN `dt` 静态识别不足，以及少量真实字段选择风险。
+- Prompt 修正后，关键 10 题抽跑达到 9 条 pass、1 条 warning；U021 单独二次修正后 pass。
+
+### 2.2 V1.1 线上化重构方向
+
+V1.1 会从新线上目录开始编码，不继续在旧 Spider / ReFoRCE 榜单入口上堆功能。目标能力包括：
+
+- Spider / ReFoRCE 榜单代码隔离。
+- router：判断单域 / 混合域和涉及域。
+- date_adjuster：保留线上日期调整环节，放在 SQL generation 前。
+- 节点级模型配置：每个 LLM 节点单独配置 provider、model、temperature。
+- registry_loader / context_builder：高频业务词、指标口径、字段别名、枚举和 JOIN 规则从 registry 读取。
+- safety_guard：无法满足、安全限制、LIMIT、分区、权限校验、禁止 DDL / DML。
+- mock online data：预留 `data/mock_warehouse/` 和执行器接口。
+
+前期调试默认模型分工：
+
+- 小模型 `moonshot-v1-128k`：router、clarifier、date_adjuster、schema_summary、llm_validator。
+- 大模型 Claude：sql_generation、selector。
+
+这只是默认配置；代码需要支持每个节点独立换模型。
+
+### 2.3 只跑几条快速验证
 
 ```bash
 TASK_LIMIT=3 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 ```
 
-### 2.2 开启 self-refine 多轮修正
+### 2.4 开启 self-refine 多轮修正
 
 在 `config.env` 中设置：
 
@@ -232,7 +372,7 @@ TASK_LIMIT=3 TASK_OFFSET=10 bash scripts/run_lite_sqlite.sh
 MAX_ITER=3
 ```
 
-### 2.3 开启 vote / 多候选
+### 2.5 开启 vote / 多候选
 
 在 `config.env` 中设置：
 
@@ -340,9 +480,9 @@ LLM_TEST_MODE=true TASK_LIMIT=1 TASK_OFFSET=10 LLM_MODEL=kimi-k2.6 THINK_OR_NOT=
 1. `LLM_PROVIDER=moonshot`
    - 默认走 `https://api.moonshot.ai/v1`
    - 使用 `.env` 中的 `MOONSHOT_BASE_URL` / `MOONSHOT_API_KEY`
-   - 常用模型包括：`kimi-k2.6`、`moonshot-v1-128k`、`moonshot-v1-32k`
-   - `kimi-k2.6` 非思考模式建议 `temperature=0.6`，思考模式建议 `temperature=1`
-   - `kimi-k2.6` 在思考模式下默认走流式调用
+   - V1.1 小模型节点默认使用：`moonshot-v1-128k`
+   - 历史 Spider/Lite 调试曾使用：`kimi-k2.6`、`moonshot-v1-32k`
+   - `moonshot-v1-128k` 当前作为 summary / validator / router / clarifier 等轻量节点默认模型
 
 2. `LLM_PROVIDER=simpleai`
    - 默认走 `https://key.simpleai.com.cn/v1`
@@ -465,7 +605,7 @@ LLM_MODEL=my-model
 
 ## 5. 当前推荐理解
 
-如果只想先稳定跑起来，建议优先走：
+如果是 Spider2-Lite SQLite 调试，建议优先走：
 
 - `moonshot-v1-128k`
 - `THINK_OR_NOT=false`
@@ -482,3 +622,13 @@ LLM_MODEL=my-model
 - `FINAL_CHOOSE=true`
 
 这套配置更接近论文方法，但也更容易碰到 API 并发和额度问题。
+
+如果是画像域业务评测，当前推荐走：
+
+- `LLM_PROVIDER=simpleai`
+- `LLM_MODEL=claude-opus-4-6`
+- `temperature=0.6`
+- `num-candidates=2`
+- `use-selector=true`
+
+V1.0 画像域当前优先级不是增加候选数，而是保留 baseline 结果，作为 V1.1 重构后的回归对照。

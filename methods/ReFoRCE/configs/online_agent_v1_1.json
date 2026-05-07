@@ -1,0 +1,78 @@
+{
+  "version": "V1.1",
+  "default_domain": "profile",
+  "domains": {
+    "profile": {
+      "name": "画像域",
+      "asset_dir": "data/profile_eval",
+      "registry_path": "data/profile_eval/profile_schema_registry.json",
+      "eval_path": "data/profile_eval/profile_text2sql_eval.jsonl",
+      "mock_warehouse_dir": "data/mock_warehouse/profile"
+    },
+    "marketing": {
+      "name": "投放域",
+      "raw_doc_dir": "data/投放域表合并",
+      "mock_warehouse_dir": "data/mock_warehouse/marketing"
+    },
+    "push": {
+      "name": "push域",
+      "raw_doc_dir": "data/push域表合并",
+      "mock_warehouse_dir": "data/mock_warehouse/push"
+    }
+  },
+  "llm": {
+    "nodes": {
+      "router": {
+        "provider": "moonshot",
+        "model": "moonshot-v1-128k",
+        "temperature": 0.2
+      },
+      "clarifier": {
+        "provider": "moonshot",
+        "model": "moonshot-v1-128k",
+        "temperature": 0.2
+      },
+      "date_adjuster": {
+        "provider": "moonshot",
+        "model": "moonshot-v1-128k",
+        "temperature": 0.1
+      },
+      "schema_summary": {
+        "provider": "moonshot",
+        "model": "moonshot-v1-128k",
+        "temperature": 0.2
+      },
+      "sql_generation": {
+        "provider": "simpleai",
+        "model": "claude-opus-4-6",
+        "temperature": 0.6,
+        "num_candidates": 2
+      },
+      "selector": {
+        "provider": "simpleai",
+        "model": "claude-opus-4-6",
+        "temperature": 0.2
+      },
+      "llm_validator": {
+        "provider": "moonshot",
+        "model": "moonshot-v1-128k",
+        "temperature": 0.1
+      }
+    }
+  },
+  "safety": {
+    "default_limit": 1000,
+    "blocked_sql_keywords": [
+      "insert",
+      "update",
+      "delete",
+      "drop",
+      "truncate",
+      "alter",
+      "create",
+      "merge"
+    ],
+    "require_partition_filter": true,
+    "require_limit_for_detail_query": true
+  }
+}

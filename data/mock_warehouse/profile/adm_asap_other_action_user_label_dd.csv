@@ -1,0 +1,4 @@
+user_id,dt,login_cnt_r30d,login_cnt_r7d,user_push_activity_level,user_push_cilck_pv_r30d,send_cnt_r30d,use_cnt_r30d
+U1001,2026-05-06,22,7,高,12,5,2
+U1002,2026-05-06,3,1,低,0,1,0
+U1003,2026-05-06,15,4,中,6,3,1

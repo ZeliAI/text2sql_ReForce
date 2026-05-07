@@ -8,27 +8,52 @@
 
 为降低调试复杂度，当前阶段只聚焦画像域。画像域由 4 张 ADM 用户画像表组成，评测集包含 30 条自然语言查询，覆盖简单、中等、困难三档。
 
+截至 2026-05-07，仓库中已补充画像域、投放域、push 域的业务表结构原始文档。V1.0 已完成画像域单域 baseline；投放域和 push 域先作为 V1.2 多域路由与多域 schema registry 的输入储备。V1.1 开始做线上化工程重构，不再继续在旧 ReFoRCE / Spider 榜单框架上堆功能。
+
 ## 2. 当前任务目标
 
-短期目标不是继续优化 Spider2 / OmniSQL 数据集，而是构建一条可在画像域业务评测集上迭代的 Text2SQL agent 链路。
+短期目标不是继续优化 Spider2 / OmniSQL 数据集，而是构建一条可在业务评测集上迭代，并最终贴近线上链路的 Text2SQL agent。
 
-当前需要做到：
+V1.0 已做到：
 
 1. 读取画像域评测集和画像域 schema 文档。
 2. 基于画像域业务知识生成 ODPS / MaxCompute SQL。
 3. 重点提升业务语义映射正确性，包括表选择、字段选择、枚举值映射、指标口径、JOIN 方式和分区规则。
 4. 在没有真实数据的情况下，先通过静态 SQL 校验和 LLM selector 评估 SQL 质量。
-5. 保留 ReFoRCE P0 的短期思想：生成前 schema / 业务上下文压缩，生成后候选 SQL 选择与校验。
+5. 保留 ReFoRCE compact context / schema summary 思想：生成前压缩 schema / 业务上下文，生成后候选 SQL 选择与校验。
+
+V1.1 需要做到：
+
+1. 隔离 Spider / ReFoRCE 公开榜单相关代码，避免干扰线上工程开发。
+2. 建立线上化 pipeline：router、clarifier、date_adjuster、context_builder、schema_summary、sql_generator、validator、safety_guard、selector。
+3. 每个 LLM 节点独立配置模型，前期默认大模型 Claude、小模型 `moonshot-v1-128k`，后续支持替换为单独训练的节点模型。
+4. 保留线上“日期调整”环节，放在多候选 SQL 生成之前。
+5. 保留无法满足、安全限制、LIMIT、分区、权限校验等线上兜底。
+6. 增加 mock online data 目录和执行器入口，为后续可执行评测做准备。
+
+当前 V1.1 已完成线上化骨架，入口为：
+
+```bash
+python3 online_profile_agent.py --limit 1 --no-selector
+```
+
+新入口优先服务画像域单域链路；V1.2 已接入基于多域 registry 的 LLM router，投放域、push 域会被识别并返回 `domain_only` 路由结果，但在对应域 context builder 和 SQL 生成策略接入前不会直接生成 SQL。V1.1/V1.2 不做重型字段归属解析，工程侧只保留基础安全保障和字段幻觉硬保护；复杂业务语义优先通过模型能力和知识库质量解决。
 
 ## 3. 现有文档
 
-画像域业务文档由 `data/合并表结构.txt` 拆分得到，拆分脚本为：
+画像域业务文档当前采用新的文件组织方式。原始合并文件和拆分后的 markdown 均保留在 `data/` 下，拆分脚本为：
 
 - `data/split_md.py`
 
-拆分后的 markdown 目录：
+当前画像域输入文件：
 
-- `data/业务评测集_markdown/`
+- `data/文档二_画像域Text2SQL评测集.md`
+- `data/画像域表合并/`
+
+后续域输入文件：
+
+- `data/投放域表合并/`
+- `data/push域表合并/`
 
 核心文档如下：
 
@@ -36,15 +61,17 @@
 | --- | --- |
 | `text2sql线上链路.md` | 介绍当前线上 Text2SQL 链路，包括语义判断、主题域解析、意图解析、意图替换、日期调整、SQL 生成、SQL 校验等节点，以及线上 prompt 示例。 |
 | `文档二_画像域Text2SQL评测集.md` | 画像域 30 条评测集，包含难度、问题、语义映射分析、选表分析、SQL 复杂度分析。 |
-| `画像域_01_Schema总览.md` | 画像域整体说明，包含 4 张表清单、表关联关系、选表规则、指标口径、业务术语映射、核心字段速查、SQL 示例和注意事项。 |
-| `画像域_02_adm_asap_base_user_label_dd.md` | 用户基础画像表明细，覆盖用户状态、年龄、性别、港漂、认证、设备、LBS、生命周期、价值、风控等字段。 |
-| `画像域_03_adm_asap_algo_user_label_dd.md` | 用户行为偏好表明细，覆盖权益偏好、业务偏好、eM+ 潜客、基金潜客、回流潜力、沉默风险等字段。 |
-| `画像域_04_adm_asap_pay_user_label_dd.md` | 用户交易行为表明细，覆盖交易金额、交易笔数、绑卡、充值、交易场景、出行、理财等字段。 |
-| `画像域_05_adm_asap_other_action_user_label_dd.md` | 用户非交易行为表明细，覆盖登录、活跃、领券、核销、push 互动、页面点击、商户关注等字段。 |
+| `画像域表合并/画像域_01_Schema总览.md` | 画像域整体说明，包含 4 张表清单、表关联关系、选表规则、指标口径、业务术语映射、核心字段速查、SQL 示例和注意事项。 |
+| `画像域表合并/画像域_02_adm_asap_base_user_label_dd.md` | 用户基础画像表明细，覆盖用户状态、年龄、性别、港漂、认证、设备、LBS、生命周期、价值、风控等字段。 |
+| `画像域表合并/画像域_03_adm_asap_algo_user_label_dd.md` | 用户行为偏好表明细，覆盖权益偏好、业务偏好、eM+ 潜客、基金潜客、回流潜力、沉默风险等字段。 |
+| `画像域表合并/画像域_04_adm_asap_pay_user_label_dd.md` | 用户交易行为表明细，覆盖交易金额、交易笔数、绑卡、充值、交易场景、出行、理财等字段。 |
+| `画像域表合并/画像域_05_adm_asap_other_action_user_label_dd.md` | 用户非交易行为表明细，覆盖登录、活跃、领券、核销、push 互动、页面点击、商户关注等字段。 |
 
 文档中的语雀链接暂时忽略，不作为当前 agent 输入来源。
 
-线上实际任务提供的知识输入就是上述画像域 markdown 文档，尤其是 `画像域_01_Schema总览.md` 到 `画像域_05_adm_asap_other_action_user_label_dd.md`。因此，结构化 schema registry 是系统链路里的自动转化产物，不要求业务同学额外维护一份 JSON 或数据库形式的知识库。
+线上实际任务提供的知识输入就是上述画像域 markdown 文档，尤其是 `data/画像域表合并/画像域_01_Schema总览.md` 到 `画像域_05_adm_asap_other_action_user_label_dd.md`。因此，结构化 schema registry 是系统链路里的自动转化产物，不要求业务同学额外维护一份 JSON 或数据库形式的知识库。
+
+`data/profile_eval/` 是由 `methods/ReFoRCE/profile_build_assets.py` 从原始 markdown 生成的中间资产，而不是人工维护来源。当前重建结果为：30 条评测、4 张画像域表、301 个字段、61 条业务术语映射、30 条指标口径、0 个未解析字段引用。
 
 ## 4. 线上链路理解
 
@@ -107,7 +134,7 @@ flowchart TD
 
 ### 6.1 总体策略
 
-采用 ReFoRCE P0 短期框架，但改造成画像域业务版本：
+V1.0 采用 ReFoRCE 短期框架，改造成画像域业务版本：
 
 ```mermaid
 flowchart TD
@@ -124,6 +151,42 @@ flowchart TD
 ```
 
 现阶段不追求完整执行反馈闭环，因为当前只有表结构和业务评测集，没有真实数据。
+
+当前本地调试使用 `simpleai` 调 Claude，模型为 `claude-opus-4-6`。已跑过 30 条 baseline，原始报告为 `pass 9 / fail 21`；重建新 registry 并补齐通用 `user_id` 后，对同一批 SQL 重新静态校验为 `pass 13 / warning 7 / fail 10`。这个数字主要反映当前静态链路成熟度，不等同于最终业务准确率。
+
+V1.1 起目标架构调整为线上 pipeline：
+
+```mermaid
+flowchart TD
+    A["用户问题 / 多轮上下文"] --> B["Router<br/>单域 / 混合域 / 涉及域"]
+    B --> C["Clarifier / Reject / Continue"]
+    C --> D["Date Adjuster"]
+    D --> E["Registry Loader"]
+    E --> F["Context Builder<br/>Compact Context"]
+    F --> G["Schema Summary"]
+    G --> H["Multi-Candidate SQL Generator"]
+    H --> I["Static Validator"]
+    I --> J["Safety Guard<br/>权限 / LIMIT / 分区 / 禁止 DDL DML"]
+    J --> K["Selector"]
+    K --> L["Final SQL / 无法满足 / 反问"]
+```
+
+每个 LLM 节点必须独立配置模型。调试阶段推荐：router、clarifier、date_adjuster、schema_summary、llm_validator 使用 Kimi；sql_generator、selector 使用 Claude。该分工只作为默认配置，代码层面通过节点名取模型，不写死供应商或模型。
+
+### 6.1.1 V1.1 工程边界
+
+V1.1 不再继续复用 Spider2 / Snow / Lite / OmniSQL 的运行入口。旧代码应进入 legacy 隔离区，新线上代码应拥有独立目录和配置。
+
+V1.1 需要预留 mock online data：
+
+```text
+data/mock_warehouse/
+  profile/
+  marketing/
+  push/
+```
+
+mock 数据用于验证 SQL 语法、JOIN、分区、LIMIT、聚合结果形态和 selector 执行信号，不作为真实业务准确率指标。
 
 ### 6.2 数据输入
 
@@ -162,6 +225,21 @@ flowchart TD
 2. 表级字段上下文：每张表的字段名、中文名、类型、值域、关键注意事项。
 
 短期可以先使用规则解析 + 少量 LLM 辅助抽取。若抽取失败，可回退到 markdown 原文片段，但主链路目标仍是让 schema registry 成为统一知识中间层，避免每次都把全文注入 prompt。
+
+当前 P0 规则解析器已适配新路径：
+
+```bash
+python3 profile_build_assets.py
+```
+
+默认读取：
+
+- `data/文档二_画像域Text2SQL评测集.md`
+- `data/画像域表合并/`
+
+并输出到：
+
+- `data/profile_eval/`
 
 ### 6.4 中文 Schema Summary Prompt
 
@@ -216,6 +294,12 @@ SQL 生成 prompt 必须面向业务同学可维护，使用中文写法。
 7. 是否伪造枚举值。
 8. 是否符合 topN / ORDER BY / LIMIT 规则。
 9. 无法满足时是否给出合理原因。
+
+当前已知不足：
+
+1. 对 CTE / 派生表 / 子查询别名的解析仍较弱，会把合法 CTE 名误判为未知表。
+2. 对复杂 JOIN 中 `dt` 条件是否已在 CTE 内过滤的识别仍偏保守。
+3. 当模型输出空 SQL 或只输出解释时，当前链路需要更明确的抽取失败保护和候选回退。
 
 ### 6.7 Selector
 

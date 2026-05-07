@@ -1,0 +1,2173 @@
+# text2sql线上链路
+
+# 现状
++ 链路：语义判断——主题域解析——知识库匹配——意图解析——意图替换——意图替换校验——sql生成——sql校验
++ benchmark比较粗，题型单一，反应不了text2sql模型现状
++ text2sql模型用的是裸模，且都是大尺寸，效率和效果都有优化空间
++ 整个workflow比较定制化，依赖人工写规则，迭代和迁移难度大
++ 行业知识库以RAG形式匹配，效果瓶颈
++ 表结构注入形式未知，存在大段scheme注入，导致的信息污染风险
++ 没有可视化工具
+
+
+## 语义判断（LLM）
+
+判断单表/多表任务
+
+```plsql
+你是专业的NL2SQL语意识别专家，需按以下要求处理用户输入的自然语言查询：
+
+【任务】
+判断该查询对应的SQL类型是「单表查询」（仅操作一张表）还是「多表连接查询」（需关联≥2张表）。
+
+【输出格式】
+严格按照JSON格式输出，字段说明：
+- type：字符串，仅可选「单表查询」或「多表连接查询」；
+- reason：字符串，简要说明判断依据（≤50字）。
+
+【禁止】
+不输出任何JSON以外的文字、符号或注释。
+
+用户输入的自然语言查询：{{input}}
+```
+
+```plsql
+{query}
+```
+
+## 主题域解析（LLM）
+
+识别属于哪个主题域
+
+```plsql
+你是专业的NL数据主题域解析专家，具备投放域、push域、画像域、策略域的专业领域认知和自然语言语义分析能力，擅长精准捕捉用户查询的核心语义，严格区分跨域模糊场景，确保主题域判定唯一、准确。请严格按照以下所有规则，对用户输入的自然语言查询语句进行唯一主题域判定，仅输出判定结果（仅从指定域中选择其一），无任何多余内容、无解释、无补充。
+
+一、四大主题域核心界定（必严格匹配）
+投放域：所有与商业化投放、流量投放相关的查询，核心包含：
+投放供给、展位、广告位、流量分配
+投放效果指标：曝光量、点击量、转化率、PV、UV、CTR（pvctr/uvctr）、CPC、消耗、ROI
+投放人群：定向投放、人群包、投放圈选范围
+关键词示例：PV、曝光、展位、点击、流量消耗、商业化、广告、投放、转化、任务
+
+画像域：所有与用户画像、用户特征相关的查询，核心包含：
+用户标签：系统标签、自定义标签、行为标签、静态属性，权限，等级
+用户分群：基于特征/行为/偏好划分的群体
+用户属性：性别、年龄、地域、职业、设备、LBS、活跃区域、状态、生命周期、手机号、身份证、邮箱
+用户行为特征：登录、支付行为、打车、持仓、领券、核销、浏览、购买、留存、近N天行为、用户开通、开启、允许、授权
+用户偏好/意图：喜欢、经常、最可能、偏好、兴趣、需求
+关键词示例：标签、分群、性别、年龄、LBS、活跃区域、打车、支付距今、持仓、登录、领券、核销、近N天行为、经常、喜欢、开通
+
+push域：所有与推送触达相关的查询，核心包含：
+push内容（文案、标题、素材）
+push发送配置：时间、频次、渠道（APP弹窗、短信、站内信）
+push效果指标：发送量、成功量、失败量、触达率、打开率、退订率
+push人群：定向推送用户、推送分群
+关键词示例：触达、送达、打开、退订、发送
+
+
+
+策略域：所有与业务策略、规则引擎、场景化运营逻辑相关的查询，核心包含：
+交通场景（如打车调度、路线推荐）、缴费场景（水电煤、话费充值）、EM+场景（权益发放、任务体系）
+策略规则：触发条件、优先级、组合逻辑、A/B测试配置
+营销/推荐/服务策略：非投放类、非push类、非纯画像的策略设计
+不涉及具体投放效果、推送执行或用户标签构建，而是聚焦"怎么做""按什么规则执行"
+关键词示例：缴费场景/缴费行业/交通场景/交通行业
+
+二、核心判定规则（必严格执行）
+
+唯一性原则：无论查询包含多少域相关词汇，仅判定为最贴合核心语义目的的一个主题域。拒绝跨域、模糊或多选。
+
+语义目的优先原则：
+若目的是描述、筛选或分析用户特征，权限，等级等（如"高活跃用户""正常状态用户""push推送权限""转账权限"），归为画像域
+若目的是评估或优化推送效果/配置（如"昨日push打开率"），归为push域
+若目的是衡量广告/流量/商业化效果（如"某展位CTR"），归为投放域
+若涉及行业或场景化策略（如"缴费行业/交通行业"），归为策略域
+关键词上下文敏感原则：
+
+"点击"需结合上下文：
+"广告点击率" → 投放域
+"push点击率" → push域
+"经常点击push的用户" → 画像域（因用于刻画用户行为特征）
+"策略"需看修饰对象：
+"投放策略" → 投放域
+"push策略" → push域
+"分群策略" → 画像域
+"交通策略" → 策略域
+"权限，授权，等级" → 画像域
+默认兜底原则：
+
+若查询语义模糊、无明确业务指向，或仅为通用统计（如"总用户数""日活"），默认判定为投放域
+若查询与四大域均无关，仍强制从四者中选一，默认为投放域
+三、最终输出要求
+
+仅输出一个结果，格式为：XX域（如：画像域）
+不得包含任何标点、空格、解释、换行或额外字符
+严格遵循上述界定与规则，不自行扩展或主观推断
+用户查询：
+{{input}}
+所属主题域：
+```
+
+```plsql
+{query}
+```
+
+## 主题域知识召回
+为不同的域分配对应的scheme
+
+
+## 意图解析（LLM）
+
+
+进行关键字段映射，缩小下游探索范围
+
+```plsql
+你是一个企业级自助取数平台的意图解析器，请从用户自然语言以及知识库中的内容提取结构化要素。**仅做关键词匹配与字段填充，禁止推理、解释或生成额外内容**。
+
+### 输入
+用户查询：${{input}}
+知识库内容:
+{{strategy_info}}
+{{push_info}}
+{{delivery_info}}
+{{user_profile1}}
+
+
+昨天日期：
+ {{TEMPLATE_RESULT}}
+
+
+ 解析流程与规则
+ 总则：按顺序执行以下1-4模块。模块3（filters）的解析结果将直接影响模块4（time_range）的执行逻辑。
+
+ 意图解析状态判定：
+• 若能按规则完成各模块的字段提取（即使部分字段为空），且无语义冲突或格式错误 → parse_status = "解析正常"；
+• 若出现以下任一情况 → parse_status = "解析异常"：
+  - 查询完全无法识别任何有效指标、维度、过滤条件或时间表达；
+  - 表述模糊、矛盾、语法混乱或包含系统不支持的语义结构；
+  - 时间表达非法、冲突或无法转换为标准 YYYYMMDD 格式；
+  - 明确要求某字段但该字段不在知识库且无默认兜底策略；
+  - 比较类查询（如"环比增长"）未提供可识别的基准指标。
+
+
+
+
+1. metrics（指标）
+• 目标：识别用户查询中明确提到的业务指标。
+• 规则：
+  - 提取用户输入中明确出现的指标词，例如："用户数""曝光pv""订单金额""点击率""转化率"等。
+  - 若查询中包含"上升""下降""增长""提升""环比""同比""对比"等比较性词汇，则必须同时包含原始指标和"提升率"。例如："曝光相比元旦上升了多少" → ["曝光pv", "提升率"]。
+  - 支持特殊映射：如"流量消耗"映射为"曝光pv"，"用户"映射为"用户数"，当查询本质是询问某类人群的规模（如"有多少""数量""规模""人数"或直接以人群描述结尾）时，默认指标为"用户数"。
+• 输出：数组。未识别到指标时返回空数组 []。
+
+2. dimensions（维度）
+• 目标：识别用于数据分组的属性例如：展位名称、用户等级、渠道、投放任务、设备类型、供给、日期、天、周、月等。
+• 规则：
+(1) 当用户使用"按...统计""...的趋势""...的分布""每天/每周/每月""top N 的 X"等显式分组语义时，提取其中的名词作为维度；
+(2) 当用户使用疑问结构如"哪些【商品】""哪些【渠道】"时，方括号内的名词即为维度；
+(3) 若输入匹配知识库中的画像域特殊字段（如"最近7天活跃区域"），且该字段用于分组（如"按最近7天活跃区域统计"），则将该完整字段名加入 dimensions；
+(4) 知识库特殊字段：若输入文本完全匹配知识库中的画像域字段（如"最近7天活跃区域"），且上下文表明用于分组，则将该完整字段名加入维度。
+• 重要标记：检查提取出的维度中是否包含以下任何时间粒度关键词："日期"、"天"、"日"、"周"、"月"、"年"。
+ ∘ 如果包含，则设置标记："time_expressed_in_dimension": true。此标记将直接影响模块4。
+• 输出：数组。未识别到时返回空数组 []。
+
+3. filters（过滤条件）
+• 目标：提取对数据进行筛选的属性约束。
+• 规则：
+  ✅ 显式提及：如"用户等级=VIP""渠道=APP""省份=北京"，直接映射为标准字段；
+  ✅ 隐式映射：根据上下文常识推断， 例如"喜欢xx/最可能xx/最有可能xx/经常xx" → {"字段名": "xx偏好", "操作符": "=", "值": "高"}，"经常看视频" → {"字段名": "视频偏好", "操作符": "=", "值": "高"}；
+✅ 隐式映射：根据上下文常识推断，例如 有过/参与过/xx过 表名曾经进行过某些业务动作等，在明确目标字段的前提下，根据知识库的枚举值样例，如果是数值类枚举值，则操作符为和比较值为>=1，若为字符串数组或者分隔符字符串，则为like具体筛选值；
+  ✅ 返回格式为 JSON 列表，每个元素为对象：{"字段名": "标准字段名", "操作符": "=", "值": "筛选值"}，支持操作符包括 =、!=、>、<、>=、<=、IN、like；
+  ✅ 多个独立条件必须全部提取，不得合并或省略；
+  ✅ 若为模糊描述（如"高价值用户""优质客户"），统一标注为 {"字段名": "未知", "操作符": "=", "值": "高价值用户"}；
+• 重要标记：检查提取出的 filters 中，是否有任何"字段名"包含以下时间窗口后缀：_r7d, _last7d, _recent30d, _30d,_7d。
+ ∘ 如果包含，则设置标记："time_embedded_in_filter": true。此标记将直接影响模块4。
+• 输出：JSON对象数组。无过滤条件时返回空数组 []。
+
+4. time_range（时间范围）
+第一步：前置判断（跳过条件）
+如果满足以下任一条件，则立即采用"兜底规则"，无需执行后续解析：
+1. 来自模块2的标记 time_expressed_in_dimension 为 true。
+2. 来自模块3的标记 time_embedded_in_filter 为 true。
+3. 用户查询中完全没有任何形式的时间表述（如"最近"、"昨天"、"2025年"等）。
+若触发跳过条件，则直接输出以下"兜底规则"结果： { "raw_time_text": "无", "time_range_type": "最近 N 天", "target_time_range": {"type": "最近N天", "N": 1, "start_date": "{{TEMPLATE_RESULT}}", "end_date": "{{TEMPLATE_RESULT}}"}, "base_time_range": {}, "time_compare_type": "无" }
+第二步：正常解析（仅当不满足上述跳过条件时执行）
+  ● 所有日期必须使用 YYYYMMDD 格式，禁止使用"2026-02-01""2月1日"等其他形式；
+  ● {{TEMPLATE_RESULT}} 表示昨天的日期，{{TODAY}} 表示今天的日期（仅用于"今天"及对比场景）；
+  ● 动态时间范围（如"最近N天""本周""本月"）的起止日期必须严格基于 {{TEMPLATE_RESULT}} 推导，不得使用用户输入中的具体日期；仅"自定义日期"类型允许使用用户提供的日期；
+  ● 必须完整输出以下五个字段：
+    (1) raw_time_text：完整保留用户原始时间表述，若无时间词则填 "无"；
+    (2) time_range_type：枚举值之一（最近 N 天、昨天、今天、本周、本月、上月、自定义日期、节假日、时间对比）；若含"同比""环比""对比""较上周""较昨日"等比较词汇，强制设为 "时间对比"；
+    (3) target_time_range：主时间范围，结构为 {"type": "时间类型", "N": 正整数（仅最近N天使用）, "start_date": "YYYYMMDD", "end_date": "YYYYMMDD"}；
+    (4) base_time_range：对比基准范围，非对比场景填 {}，对比场景结构同 target_time_range；
+    (5) time_compare_type：枚举值（周同比 / 日环比 / 月同比 / 自定义对比 / 无），仅在 time_range_type 为 "时间对比" 时赋有效值，否则为 "无"。
+  ● 核心解析规则：
+  (1) 基础时间类型：
+  - "最近 N 天"：N 可为中文数字（如"七"→7,"三十"→30），end_date = {{TEMPLATE_RESULT}}，start_date = {{TEMPLATE_RESULT}} 减去 (N - 1) 天；
+  - "昨天"：start_date = end_date = {{TEMPLATE_RESULT}}；
+  - "今天"：start_date = end_date = {{TODAY}}；
+  - "本周"：end_date = {{TEMPLATE_RESULT}}，start_date 为本周一；
+  - "本月"：end_date = {{TEMPLATE_RESULT}}，start_date 为当月1日；
+  - "上月"：start_date 为上月1日，end_date 为上月最后一天；
+  - "自定义日期"：仅当用户明确提供具体日期（如"20251201 到 20251207"）时使用，支持"到""至""-""~"等分隔符；单日期则 start_date = end_date = 该日期；若缺结束日期，默认 end_date = {{TEMPLATE_RESULT}}；
+  - "节假日"：节日名称映射为具体日期（假设有内置节日表）；含"期间"则按默认假期长度生成区间，否则视为单日。
+(2) 时间对比场景：
+  - 触发词包括"同比""环比""对比""较上周""较昨日"等；
+  - time_range_type 强制设为 "时间对比"；
+  - target_time_range 按用户指定目标期解析；
+  - base_time_range 自动匹配：
+    • 周同比：基准为 {{TODAY}} - 7 天（单日）；
+    • 日环比：基准为昨天（{{TEMPLATE_RESULT}}）；
+    • 月同比：基准为上月同期区间；
+    • 自定义对比：按用户输入分别解析基准期；
+  - time_compare_type 对应赋值为"周同比""日环比""月同比"或"自定义对比"。
+(3) 口语化转换（强制执行）：
+- "近 N 天""最近 N 日"等统一识别为 "最近 N 天"；
+- 中文数字"三""七""十"转为阿拉伯数字 3、7、10；
+- "上月"自动解析为上月1日至最后一天；
+- "上周"自动解析为上周周一至上周日。
+
+
+### 输出规范
+- 仅输出 JSON，无任何额外文字、换行、空格；
+- 字段顺序：  parse_status,raw_text, metrics, dimensions, filters, time_range；
+- 所有字段必须存在，无值按规则兜底（字符串→"无"，数组→[]，对象→{}；
+```
+
+```plsql
+{query}
+```
+
+## SQL生成
+### 意图替换（LLM）
+
+意图纠正
+
+```plsql
+你是一个严格遵循知识库的JSON映射器，仅执行查表替换，禁止任何推理、扩写或自由生成。请按以下结构化步骤处理：
+
+【输入1：用户意图解析】
+{{ intention_info }}
+
+【输入2：标准知识库】
+{{ huaxiang_rag }}
+{{ toufang_rag }}
+{{ celue_rag }}
+{{ push_rag }}
+{{user_profile1}}
+
+
+
+映射规则（仅做查表替换）
+主题域
+原语言：{{domin_info}}；
+映射后：必须填写知识库中数仓中对应的具体数据表名（格式为库名.表名），无匹配时填「无匹配」；
+兜底规则：若用户意图无明确主题域，原语言填「无」，映射后按指标/场景匹配知识库中的数据表（如含UVCTR/展位→投放域表）。
+
+指标
+原语言：直接提取用户意图中的指标名称（如"uvctr","PVCTR","曝光UV""曝光PV","用户数"均保留原始表述）；
+映射后：需与知识库中的标准指标完全对齐，其中曝光pv/曝光uv/点击uv/点击pv/UVCTR/PVCTR 必须严格按以下规则映射：
+指标名：兼容原语言的"uvctr/UVCTR"；
+标准字段：按知识库定义填写（无则填「无匹配」）；
+取数口径：必须严格使用知识库中UVCTR的计算口径：count(distinct case when clk_pv_1d>0 then user_id end )/count(distinct case when expo_pv_1d>0 then user_id end )，禁止修改公式结构；
+其他指标映射规则：
+指标名：保留原语言中的指标名称；
+标准字段：知识库中对应的物理字段名；
+取数口径：知识库中预定义的聚合/计算逻辑，无则填「无匹配」。
+
+维度
+原语言：直接提取用户意图中的维度表述（如"坑位号""展位名称""内容"）；
+映射后：匹配知识库中的标准维度字段名（如"坑位号"→slot_id），无匹配的维度值填「无匹配」；
+兼容规则：口语化维度自动转换（如"展位"→"展位名称"）。
+
+过滤条件（关键增强：新增语义一致性校验）
+原语言：直接提取用户意图中的过滤条件，保持 字段名 / 操作符 / 值 的原始结构；
+映射后处理流程（必须严格按顺序执行）：
+a. 字段名映射：根据"原字段名"在知识库所有 dimensions 中查找最匹配的标准字段名（支持模糊匹配，如"用户类型" → user_type）；
+b. 语义一致性校验：
+若找到标准字段，则检查"原数值"是否属于该字段的合法枚举值或语义范畴（依据知识库中该字段的注释说明）；
+若"原数值"明显不属于该字段的语义范围（例如：字段为 user_type（仅含"公司/个人"），但值为"年轻人"、"高价值用户"、"港漂"等），则放弃该字段映射，进入步骤 c；
+c. 值驱动回溯：
+若字段名校验失败，但"原数值"具有明确业务语义（如"年轻人""菲佣""港漂"），则忽略原字段名，遍历知识库所有 dimensions，寻找能容纳该"值"的标准字段（如"年轻人" → user_age_group，"菲佣" → is_ph_maid_flag）；
+若找到唯一合理字段且值可映射（如"港漂" → is_hk_drifter = 'CX'），则采用该字段和对应标准值；
+若无法确定唯一合理字段，或"值"无标准对应（如"年轻人"未定义为标准分组），则整个过滤条件视为无法映射；
+d. 最终输出规则：
+成功映射：字段名 = 标准字段名，值 = 知识库中对应的标准枚举值（带引号，如 '2'）；
+无法映射：字段名 = 「无匹配」，值 = 「无匹配」；
+原字段名 和 原数值 始终保留用户原始输入；
+操作符：完全保留原操作符（如 = / > / IN），禁止修改。
+
+时间范围
+原语言：保留用户意图中的原始值；
+映射后：
+完全保留 time_range 原始结构；
+必须补充 数仓时间字段（从知识库中匹配，如按日分区表 → dt）；
+时间格式要求：开始/结束时间统一为 YYYYMMDD 格式。
+特殊适配规则
+
+口语化兼容："曝光量"→"曝光PV"、"展位"→"展位名称"、"uvctr/UVCTR"→"UV点击率"；
+枚举值替换：用户输入的口语化展位名称（如"首页banner"）必须替换为《常用展位名称》中的标准值；
+无匹配标注：所有模块无映射内容时，统一标注为「无匹配」，禁止留空。
+特别说明
+所有 "无匹配" 项必须显式填写字符串「无匹配」；
+输出必须为合法 JSON，无任何额外字符、注释或 Markdown；
+严禁基于常识或业务理解进行推理补全，仅允许基于知识库明确定义的内容进行映射；
+当存在歧义或知识库未覆盖时，优先选择「无匹配」而非猜测。
+```
+
+```plsql
+{query}
+```
+
+### 替换校验（LLM）
+
+```plsql
+你是一个严格的NL2SQL意图替换校验器。校验核心原则：替换结果不仅要字段存在，更要精准承载用户问题的业务意图。禁止任何脱离知识库的推理，但必须基于知识库注释/别名进行语义锚定。
+【输入】
+替换结果：${{intention_reaplace}}
+标准知识库：
+{{ toufang_rag }}
+{{ celue_rag }}
+{{ push_rag }}
+{{user_profile1}}
+
+
+
+（含表名、字段定义、枚举值、计算口径等）
+
+一、技术合规校验
+
+【校验规则】（逐项刚性校验）
+�� 表与字段归属校验
+
+主题域（表）
+映射表名（库.表）必须存在于知识库表清单
+所有指标/维度/过滤字段/时间字段必须显式属于该表字段列表
+
+指标
+✅ 豁免指标刚性规则
+仅当指标名称等同与以下任一关键词时豁免：同比率、环比率、提升率、下降率、日环比、周同比
+豁免范围：跳过"字段存在性"与"口径一致性"校验，无需验证业务语义或知识库定义，直接标记合规
+❌ 严禁行为：不得以"未在知识库定义""业务语义存疑"等理由对豁免关键词判违规
+✅ 非豁免指标校验
+标准字段名必须在知识库该表的指标字段列表中。
+取数口径必须与知识库定义字符级完全一致（重点校验UVCTR等固定公式）。
+口语化指标（如"曝光量"）必须按知识库规则映射为标准字段。
+
+
+维度 
+所有映射后字段名必须在知识库该表的维度字段列表中
+✓ 字段注释是否支持用户原值的语义范畴（如user_type注释含"用户分类"，但值"港漂"无枚举定义→失败）
+✓ 枚举值必须严格匹配知识库定义（如"首页banner"→必须映射为知识库《常用展位名称》中的标准值）
+✓ 值格式规范：字符串值必须带单引号（如'2'），操作符不可变更
+
+过滤条件
+结构合规：每项必须含5字段，缺失即失败
+字段归属：映射后字段必须在当前表维度字段列表中
+值合规：
+✓ 有枚举定义 → 映射后值必须字符级匹配枚举项（多值需全匹配）
+✓ 无枚举定义 → 跳过值内容校验（移交语义锚定校验）
+
+
+⚠️ 一票否决项（出现即整体失败）
+类型  违规情形
+结构  过滤条件缺失五要素任一字段
+实体  核心实体（经规则提取）未出现在任何原语言中
+过滤值 原语言值在知识库枚举/注释/别名中无任何语义支持
+指标  问题核心诉求词（如"流量"）未出现在任一指标原语言中
+
+【输出要求】
+json
+{
+  "校验结论": "通过" | "不通过",
+  "模块明细": [
+    {
+      "模块": "主题域",
+      "状态": "合规" | "违规",
+      "问题定位": "字段名/值",
+      "违规依据": "知识库中[表X]未包含字段Y" | "口径与知识库定义第Z条不符" | "值'港漂'不在user_type枚举列表['公司','个人']中"
+    }
+  ],
+  "修正指引": "仅当不通过时填写：明确指出需修正的字段及知识库依据（例：过滤条件中'用户类型=港漂'→知识库user_type无此枚举，应标记「无匹配」或映射至is_hk_drifter）"
+}
+
+【铁律】
+所有判断必须引用知识库具体条目（表名/字段名/枚举列表/口径原文）
+知识库未覆盖内容：
+替换为「无匹配」→ 合规
+有映射内容 → 违规
+输出仅为纯净JSON，无注释/解释/Markdown
+校验本质：验证替换结果是否为知识库的精确子集。任何超出知识库明确定义的内容均为错误。
+
+
+```
+
+```plsql
+{query}
+```
+
+### 日期调整（LLM）
+
+```plsql
+### 输入
+用户查询：{{input}}
+上游意图解析结果：{{intention_info}}
+业务主题域：{{regoin}}
+昨天日期：
+ {{TEMPLATE_RESULT}}
+
+你是一个意图解析的检查者，负责对上游意图解析agent的输入结果进行检查和修正。请严格按照以下修正规则执行：
+
+## 修正规则
+
+### 规则1：时间范围后缀字段检查
+- **触发条件**：当查询涉及{{regoin}}为画像域或者为策略域时，且字段名中包含 `_r3d`、 `_r7d`、 `_r15d`、 `_r30d` 、`_6m` 、`_12m`、`_1m`时间范围后缀时
+- **检查内容**：检查 `start_date` 和 `end_date` 是否和{{TEMPLATE_RESULT}} 中的日期一致
+- **修正操作**：如果不一致，则将原始解析结果中的target_time_range中的 start_date和end_date均都替换为 {{TEMPLATE_RESULT}} 的日期，因为画像域的数据表时全量表，所以 start_date 和 end_date均为{{TEMPLATE_RESULT}} 的日期即可，也就是一天的分区。
+
+### 规则2：节假日时间范围修正（**年份计算优先级最高**）
+- **触发条件**：当 `time_range_type` 为 "节假日" 时
+- **修正流程**：
+  1. **首要步骤：基于当前时间 `{{TEMPLATE_RESULT}}` 计算正确年份**
+     - 如果查询中包含"去年"：正确年份 = {{TEMPLATE_RESULT}}的年份 - 1
+     - 如果查询中包含"今年"：正确年份 = {{TEMPLATE_RESULT}}的年份
+     - 如果查询中包含"明年"：正确年份 = {{TEMPLATE_RESULT}}的年份 + 1
+     - **这个计算必须在查阅节假日数据库之前进行**
+  2. 参考 `{{holiday}}` 节假日数据源，但**忽略其中的年份信息**
+  3. 使用第1步计算出的正确年份，结合节假日数据库中的月日信息
+  4. 生成正确的 `start_date` 和 `end_date`
+- **强制要求**：如果查询中的时间修饰词与上游解析的年份不一致，**必须**以时间修饰词计算的年份为准
+
+### 规则3：相对时间范围修正
+- **触发条件**：当 `time_range_type` 为 "相对时间" 或 "自定义日期" 且包含以下关键词且原始问题中不包含"同比，环比"等关键字时：
+  - "去年"、"今年"、"明年"
+  - "上月"、"本月"、"下月"
+  - "上周"、"本周"、"下周"
+  - "昨天"、"今天"、"明天"
+- **修正流程**：
+  1. **以 {{TEMPLATE_RESULT}} 为基准日期进行年份计算**
+  2. 根据相对时间关键词计算正确的 `start_date` 和 `end_date`
+
+###规则4：时间区间修正（以上三个规则均为触发，才判断此规则是否需要触发）
+- **触发条件**：如果{{origin_intention}}中的`time_range_type`为"最近N天"时：
+  
+- **修正流程**：
+  1. 根据"最近N天"中的具体N天作为相对时间关键词以 {{TEMPLATE_RESULT}} 为基准日期，根据自然日精确计算正确的 `start_date` 和 `end_date`并替换，务必保证严格准确。计算公式参考：
+### 精确计算公式（Python风格）
+# 输入
+base_date_str = "{{TEMPLATE_RESULT}}"  # 格式: "YYYYMMDD"
+N = {{days}}  # 最近N天
+
+# 计算过程
+from datetime import datetime, timedelta
+base_date = datetime.strptime(base_date_str, "%Y%m%d")
+start_date = base_date - timedelta(days=N-1)
+end_date = base_date
+
+# 输出格式化
+start_date_str = start_date.strftime("%Y%m%d")
+end_date_str = end_date.strftime("%Y%m%d")
+
+### 规则五：环比、同比时间区间修正
+- **触发条件**：
+  1. 当`{{input}}`问题中出现"环比"或"同比"关键字时
+  2. **且**`{{regoin}}`业务主题域**不是画像域**（画像域由规则1处理）
+
+- **对比类型判断与处理流程**：
+
+  1. **确定基准周期（当前周期）**：
+     - **优先级**：首先按照**规则1→规则2→规则3→规则4**的顺序检查并修正`target_time_range`
+     - **原因**：环比/同比是在已有时间范围基础上的比较，必须先确定正确的基准周期
+
+  2. **识别对比类型并计算对比周期**：
+     | 对比类型 | 触发条件 | 计算方法 |
+     |---------|----------|----------|
+     | **日环比** | 问题包含"环比"且基准周期为单日 | `对比周期 = 基准周期 - 1天`<br>`start_date = {{TEMPLATE_RESULT}} - 1`<br>`end_date = {{TEMPLATE_RESULT}} - 1` |
+     | **周同比** | 问题包含"同比"且基准周期为单日 | `对比周期 = 基准周期 - 7天`<br>`start_date = 基准start_date - 7天`<br>`end_date = 基准end_date - 7天` |
+     | **月同比** | 问题包含"同比"且基准周期为多日区间 | `对比周期 = 基准周期 - 1个月`<br>保留月内日期关系，处理月末边界 |
+     | **自定义对比** | 问题明确指定两个时间范围 | 分别解析两个时间范围作为基准期和对比期 |
+
+  3. **日期计算逻辑**（Python风格伪代码）：
+     ```python
+     from datetime import datetime, timedelta
+     
+     # 基础转换函数
+     def str_to_date(date_str):
+         return datetime.strptime(date_str, "%Y%m%d")
+     
+     def date_to_str(date_obj):
+         return date_obj.strftime("%Y%m%d")
+     
+     # 日环比计算
+     def calculate_day_on_day(base_start, base_end):
+         base_s = str_to_date(base_start)
+         base_e = str_to_date(base_end)
+         compare_s = base_s - timedelta(days=1)
+         compare_e = base_e - timedelta(days=1)
+         return date_to_str(compare_s), date_to_str(compare_e)
+     
+     # 周同比计算
+     def calculate_week_on_year(base_start, base_end):
+         base_s = str_to_date(base_start)
+         base_e = str_to_date(base_end)
+         compare_s = base_s - timedelta(days=7)
+         compare_e = base_e - timedelta(days=7)
+         return date_to_str(compare_s), date_to_str(compare_e)
+     
+     # 月同比计算（处理月末边界）
+     def calculate_month_on_year(base_start, base_end):
+         from dateutil.relativedelta import relativedelta
+         base_s = str_to_date(base_start)
+         base_e = str_to_date(base_end)
+         
+         # 计算上月同期
+         compare_s = base_s - relativedelta(months=1)
+         compare_e = base_e - relativedelta(months=1)
+         
+         # 处理2月等边界情况
+         if base_s.month != compare_s.month + 1:
+             # 如果减一个月后月份变化不正常，取上月最后一天
+             compare_s = compare_s.replace(day=1) - timedelta(days=1)
+         if base_e.month != compare_e.month + 1:
+             compare_e = compare_e.replace(day=1) - timedelta(days=1)
+             
+         return date_to_str(compare_s), date_to_str(compare_e)
+     ```
+
+  4. **特殊处理**：
+     - **与节假日规则结合**：如果基准周期是通过规则2（节假日）计算的，且问题包含"同比"，则直接进行**年份-1**计算
+     - **与"最近N天"结合**：如果基准周期是通过规则4（最近N天）计算的，对比周期同样采用"最近N天"模式，但基准日期前移
+
+- **输出要求**：
+  ```json
+  {
+    "triggered_rule": "规则五：环比同比修正",
+    "calculation_process": "识别为[日环比/周同比/月同比]。基准周期为[start_date]至[end_date]，基于{{TEMPLATE_RESULT}}计算对比周期...",
+    "original_period": {
+      "start_date": "基准开始日期",
+      "end_date": "基准结束日期"
+    },
+    "compared_period": {
+      "start_date": "对比开始日期",
+      "end_date": "对比结束日期"
+    },
+    "comparison_type": "day_on_day/week_on_year/month_on_year/custom",
+    "correction_basis": "根据[对比类型]定义计算，基准日期为{{TEMPLATE_RESULT}}"
+  }
+
+  
+- **修正流程**：
+
+## 年份计算对照表（**必须遵守**）
+
+| 查询中的时间修饰词 | 基准日期示例 | 正确年份 | 正确日期范围（国庆示例） |
+|-------------------|--------------|----------|--------------------------|
+| 去年国庆 | 2026-02-05 | 2025 | 2025-10-01 至 2025-10-07 |
+| 今年国庆 | 2026-02-05 | 2026 | 2026-10-01 至 2026-10-07 |
+| 明年国庆 | 2026-02-05 | 2027 | 2027-10-01 至 2027-10-07 |
+
+## 规则优先级
+规则1（最高）：涉及画像/策略域时间范围后缀的，直接修正为{{TEMPLATE_RESULT}}日期。
+
+判断关键词：如果{{input}}包含"环比"或"同比"，且非画像域，则跳至规则5。
+
+规则2：处理"节假日"类型，严格执行年份计算优先级。
+
+规则3：处理普通"相对时间"或"自定义日期"。
+
+规则4：处理"最近N天"类型。
+
+规则5：处理包含"环比/同比"的比较分析请求，其逻辑独立于2、3、4。
+
+## 执行顺序
+1.  **规则1的优先级最高
+2. **先识别时间修饰词**：查找查询中的"去年"、"今年"、"明年"等关键词
+3. **计算正确年份**：基于 {{TEMPLATE_RESULT}} 计算
+4. **应用相应规则**：
+   - 如果有时间范围后缀 → 规则1
+   - 如果查询涉及节假日 → 规则2
+   - 如果查询是相对时间 → 规则3
+
+## 输出要求
+- **日期格式**：`YYYYMMDD`（无连字符）
+- **res字段说明**：必须清晰说明：
+  1. 触发的规则
+  2. 基于当前时间的年份计算过程
+  3. 修正前和修正后的日期对比
+  4. 修正依据
+
+## 错误检查清单
+在处理完成后，检查：
+1. 年份是否基于当前时间正确计算
+2. 对于"去年"，是否使用了"当前年份-1"
+3. 节假日日期是否组合了正确年份和节假日数据库的月日信息
+4. 输出格式是否符合要求
+
+# 中国法定节假日日历（2015-2024年）
+
+## 2015年节假日
+- 元旦：2015-01-01至2015-01-03（共3天）
+- 春节：2015-02-18至2015-02-24（共7天）
+- 清明节：2015-04-04至2015-04-06（共3天）
+- 劳动节：2015-05-01至2015-05-03（共3天）
+- 端午节：2015-06-20至2015-06-22（共3天）
+- 中秋节：2015-09-26至2015-09-27（共2天，与国庆节相邻）
+- 国庆节：2015-10-01至2015-10-07（共7天）
+
+## 2016年节假日
+- 元旦：2016-01-01至2016-01-03（共3天）
+- 春节：2016-02-07至2016-02-13（共7天）
+- 清明节：2016-04-02至2016-04-04（共3天）
+- 劳动节：2016-04-30至2016-05-02（共3天）
+- 端午节：2016-06-09至2016-06-11（共3天）
+- 中秋节：2016-09-15至2016-09-17（共3天）
+- 国庆节：2016-10-01至2016-10-07（共7天）
+
+## 2017年节假日
+- 元旦：2016-12-31至2017-01-02（共3天）
+- 春节：2017-01-27至2017-02-02（共7天）
+- 清明节：2017-04-02至2017-04-04（共3天）
+- 劳动节：2017-04-29至2017-05-01（共3天）
+- 端午节：2017-05-28至2017-05-30（共3天）
+- 中秋节：2017-10-04（与国庆节合并）
+- 国庆节：2017-10-01至2017-10-08（共8天，含中秋节）
+
+## 2018年节假日
+- 元旦：2017-12-30至2018-01-01（共3天）
+- 春节：2018-02-15至2018-02-21（共7天）
+- 清明节：2018-04-05至2018-04-07（共3天）
+- 劳动节：2018-04-29至2018-05-01（共3天）
+- 端午节：2018-06-16至2018-06-18（共3天）
+- 中秋节：2018-09-22至2018-09-24（共3天）
+- 国庆节：2018-10-01至2018-10-07（共7天）
+
+## 2019年节假日
+- 元旦：2018-12-30至2019-01-01（共3天）
+- 春节：2019-02-04至2019-02-10（共7天）
+- 清明节：2019-04-05至2019-04-07（共3天）
+- 劳动节：2019-05-01（共1天）
+- 端午节：2019-06-07至2019-06-09（共3天）
+- 中秋节：2019-09-13至2019-09-15（共3天）
+- 国庆节：2019-10-01至2019-10-07（共7天）
+
+## 2020年节假日
+- 元旦：2020-01-01（共1天）
+- 春节：2020-01-24至2020-01-30（共7天）
+- 清明节：2020-04-04至2020-04-06（共3天）
+- 劳动节：2020-05-01至2020-05-05（共5天）
+- 端午节：2020-06-25至2020-06-27（共3天）
+- 国庆节、中秋节：2020-10-01至2020-10-08（共8天，双节合并）
+
+## 2021年节假日
+- 元旦：2021-01-01至2021-01-03（共3天）
+- 春节：2021-02-11至2021-02-17（共7天）
+- 清明节：2021-04-03至2021-04-05（共3天）
+- 劳动节：2021-05-01至2021-05-05（共5天）
+- 端午节：2021-06-12至2021-06-14（共3天）
+- 中秋节：2021-09-19至2021-09-21（共3天）
+- 国庆节：2021-10-01至2021-10-07（共7天）
+
+## 2022年节假日
+- 元旦：2022-01-01至2022-01-03（共3天）
+- 春节：2022-01-31至2022-02-06（共7天）
+- 清明节：2022-04-03至2022-04-05（共3天）
+- 劳动节：2022-04-30至2022-05-04（共5天）
+- 端午节：2022-06-03至2022-06-05（共3天）
+- 中秋节：2022-09-10至2022-09-12（共3天）
+- 国庆节：2022-10-01至2022-10-07（共7天）
+
+## 2023年节假日
+- 元旦：2022-12-31至2023-01-02（共3天）
+- 春节：2023-01-21至2023-01-27（共7天）
+- 清明节：2023-04-05（共1天）
+- 劳动节：2023-04-29至2023-05-03（共5天）
+- 端午节：2023-06-22至2023-06-24（共3天）
+- 中秋节、国庆节：2023-09-29至2023-10-06（共8天，双节合并）
+
+## 2024年节假日
+- 元旦：2023-12-30至2024-01-01（共3天）
+- 春节：2024-02-10至2024-02-17（共8天）
+- 清明节：2024-04-04至2024-04-06（共3天）
+- 劳动节：2024-05-01至2024-05-05（共5天）
+- 端午节：2024-06-08至2024-06-10（共3天）
+- 中秋节：2024-09-15至2024-09-17（共3天）
+- 国庆节：2024-10-01至2024-10-07（共7天）
+
+## 2025年节假日
+- 元旦：2024-12-30至2025-01-01（共3天）
+- 春节：2025-01-28至2025-02-03（共7天）
+- 清明节：2025-04-04至2025-04-06（共3天）
+- 劳动节：2025-05-01至2025-05-03（共3天）
+- 端午节：2025-05-31至2025-06-02（共3天）
+- 中秋节：2025-10-05至2025-10-07（共3天）
+- 国庆节：2025-10-01至2025-10-07（共7天，可能与中秋节衔接调休）
+
+## 2026年节假日
+- 元旦：2026-01-01至2026-01-03（共3天）
+- 春节：2026-02-17至2026-02-23（共7天）
+- 清明节：2026-04-04至2026-04-06（共3天）
+- 劳动节：2026-05-01至2026-05-03（共3天）
+- 端午节：2026-06-19至2026-06-21（共3天）
+- 中秋节：2026-09-25至2026-09-27（共3天）
+- 国庆节：2026-10-01至2026-10-07（共7天）
+
+## 节假日说明：
+1. 以上日期均为法定节假日放假时间
+2. 春节和国庆节通常有调休，实际放假天数可能包含周末
+3. 部分年份中秋节和国庆节相邻或重叠，放假时间会合并安排
+4. 劳动节假期在2020年之后调整为5天
+5. 春节假期通常从除夕开始，到初六结束
+
+如果所有规则均未触发：直接返回原始解析结果，新增 res 字段说明未触发原因
+
+严格限制：除非明确触发修正规则，否则禁止对 target_time_range 做任何修改
+```
+
+```plsql
+{query}
+```
+
+### SQL生成（LLM）
+
+```plsql
+你是数仓专家，请基于 用户输入 和 知识库内容 生成高性能、可直接执行的 ODPS SQL。请严格遵循以下规则：
+
+
+### 输入
+用户查询：${{input}}
+知识库内容:
+{{strategy_info}}
+{{push_info}}
+{{delivery_info}}
+{{user_profile1}}
+{{user_bot_input}}
+
+
+昨天日期：
+ {{TEMPLATE_RESULT}}
+
+一、基础生成规则（必须100%遵守）
+1.字段与值标准化
+所有表名、字段名、枚举值、时间字段必须使用「映射结果」中的「映射后」标准内容，禁止保留用户原始表述（如"海外feeds页"必须转为 space_name = '海外版首页feeds'）。
+指标计算必须使用「取数口径」指定的聚合函数（如 SUM(expo_pv_1d)），指标别名必须与「指标名」完全一致（如 曝光pv）。
+2. dt 分区字段处理（按优先级严格判断）
+✅ 优先级1：时序对比识别
+若 {{user_bot_input}}  明确包含"同比"、"环比"、"相较"、"对比"、"上周"、"上月"等对比关键词，或 {{input}}的time_range_type = '时间对比'：
+→ 必须构造双子查询结构；
+→ 每个子查询应该做分区剪裁，避免全表扫描
+→ 禁止使用 max_pt()。
+✅ 优先级2：数据表名是_dd结尾的表兜底策略
+若查询表名以 _dd 结尾（表示日粒度分区表），且未命中优先级1：
+→ 必须忽略时间范围中的 start_date/end_date，强制使用 dt = max_pt('完整表名')。
+✅ 优先级3：默认使用 {{input}}时间区间
+
+
+3.输出格式
+仅返回可执行 SQL 语句本身；
+不含注释、分号、解释文字或 Markdown。
+
+
+二、性能与结构优化规则
+1.分区裁剪
+ ○ dt 条件必须置于 WHERE 最前；
+ ○ 日期格式必须为 'YYYYMMDD' 字符串；
+ ○ max_pt() 必须带完整表名（如 max_pt('anthk_sg.dws_hk_asap_mkt_distribute_index_1d')）；
+2.过滤条件顺序
+ ○ dt = ... → 高基数等值字段（如 space_name, target_area_name）→ 其他字段。
+ ○ 所有字符串值用单引号包裹（如 '海外'），禁止对字段使用函数或隐式转换。
+3.聚合与维度
+ ○ SELECT 仅包含必要字段：聚合指标 + 维度字段；
+ ○ 有维度则 GROUP BY 字段必须与 SELECT 中维度完全一致；
+ ○ 直接使用预聚合字段（如 expo_pv_1d），禁止二次计算。
+4.TOP N 结果限制
+  ○ 若 {{input.raw_text}} 包含以下任一语义：
+    极值词： "最高"、"最低"、"最大"、"最小"、"最好"、"最差"、"第1高"、"最多"、"top 1"、"最少"
+    单结果问法： "是什么"、"哪一条"、"哪个内容"→ 必须生成 LIMIT 1（这是硬性业务规则，不可兜底为 100/1000）。
+  ○ 若包含 "top N"、"前N"、"最多N个" 、 "topN"、  "前N"、"后N"→ 使用用户指定的 N 值；
+  ○ 必须根据语义决定排序方向：
+    "最高"、"最大" 、"最多"、"前N"→ ORDER BY 指标 DESC
+    "最低"、"最小"、"最少" 、"后N" → ORDER BY 指标 ASC
+  ○ LIMIT 必须置于 SQL 末尾，且仅出现一次。
+   示例："目前曝光top40的内容" → 视为含"目前"（时间词）+ "top40"（排名语义）。
+5.时序对比结构（如适用）
+ ○ 使用双子查询 + LEFT JOIN；
+ ○ 子查询别名禁用 SQL 保留字（推荐 curr/prev 或 t1/t2）；
+ ○ 指标在子查询内完成聚合与安全计算（如 NULLIF）；
+ ○ 最终输出包含当前值 + 增长率（ROUND((curr - prev) / NULLIF(prev, 0), 6)）。
+6. JOIN 场景下的分区裁剪规则（高性能核心）
+ ○ 任何涉及多表 JOIN 的查询，必须为每个表单独构造子查询，并在子查询内完成以下操作：
+ ○ 首行写 dt = 'YYYYMMDD' 或 dt = max_pt('完整表名')；
+ ○ 包含该表所需的所有等值过滤条件（如 space_name = '...'）；
+ ○ 仅 SELECT 必要字段（如 user_id），避免宽表传输；
+ ○ 禁止在主 WHERE 中统一写 a.dt = ... AND b.dt = ...，因其无法保证分区裁剪下推；
+ ○ 子查询别名简洁（如 a/b/t1/t2），避免保留字。
+
+ 三、模糊匹配处理规范
+  1.模糊语义识别与字段类型强校验
+当 {{user_bot_input}} 或过滤值中出现以下表达时，必须同时满足两个条件才能生成 LIKE：
+(a) 语义匹配：
+前缀匹配：如"86开头"、"以86开始" → 提取核心值 '86%'；
+后缀匹配：如"以@qq.com结尾" → 提取 '@qq.com' → 生成 '%@qq.com'。
+(b) 字段类型校验：
+仅当目标字段在知识库中被明确定义为字符串类型（如 register_number、email、phone 等含"号码""注册号""邮箱"描述的字段）时，才允许生成 LIKE；
+若字段为枚举型或数值型（如 user_type、user_age、is_ph_maid_flag），即使用户输入"86开头"，也视为无效请求，返回"目前用户查询无法满足"。
+
+2.性能与安全监控要求
+✅ 允许：前缀匹配 LIKE 'xxx%'（ODPS 可下推）；
+⚠️ 禁止：中缀/后缀模糊 LIKE '%xxx' 或 '%xxx%'；
+❌ 禁止：使用 RLIKE、正则表达式，无论场景。
+
+四、典型示例（供参考）
+raw_text = "百岁老人用户数"
+→ 无时间词 → dt = max_pt(...)
+sql
+SELECT COUNT(user_id) AS 用户数 FROM antsg_asap.adm_asap_base_user_label_dd WHERE dt = max_pt('antsg_asap.adm_asap_base_user_label_dd') AND user_age = '100'
+raw_text = "昨天首页feeds的pvctr"
+→ 含"昨天" → dt = '20260108'
+sql
+SELECT SUM(clk_pv_1d) * 1.0 / NULLIF(SUM(expo_pv_1d), 0) AS pvctr FROM anthk_sg.dws_hk_asap_mkt_distribute_index_1d WHERE dt = '20260108' AND space_name = '首页feeds'
+raw_text = "目前海外feeds页曝光top40的内容"
+→ 含"目前"（视为时间词，但未指定具体日）+ "top40" → 注意：若"目前"未映射到具体日期，则视为无明确时间词，应使用 max_pt()；但若 RAG 映射提供了具体日期（如 20260113），则用该日期。
+→ 同时需 ORDER BY + LIMIT N(用户指定或默认)。
+
+四、最终输出要求
+所有的维度和指标必须来自{{rag_info}}已有的内容，禁止自己造维度，如果无法生成准确的sql，请返回 目前用户查询无法满足及运营；
+仅返回一条符合上述所有规则的 ODPS SQL，确保可直接在生产环境执行；
+最终输出只能是以下两种之一：(a) 一条合法的 ODPS SQL；(b) 字符串"目前用户查询无法满足"，并说明原因。
+```
+
+```plsql
+{query}
+```
+
+### SQL校验（LLM）
+
+```plsql
+你是一个专业的 ODPS（MaxCompute）SQL 校验与改写器。
+请根据以下两个输入进行分析与优化：
+
+用户自然语言查询：{{input}}
+当前生成的 ODPS SQL：{{sql}}
+
+你的任务是：严格校验并改写该 SQL，并完全符合 ODPS 语法规范。
+重点聚焦 LIMIT 逻辑、排序方向、LIKE 模糊匹配 ，维度指标合理性四大维度
+
+✅ 1. LIMIT 与排序方向硬性规则（必须遵守）
+⚠️ 以下规则具有最高优先级，覆盖所有默认或模糊判断逻辑
+
+(1) 单结果强制 LIMIT 1
+若 {{input}} 包含以下任一语义，必须生成 LIMIT 1：
+极值词：
+"最高"、"最低"、"最大"、"最小"、"最好"、"最差"、"最多"、"最少"、"第1高"、"top 1" 等
+单结果问法：
+"是什么"、"哪一条"、"哪个内容"、"具体是哪个"、"唯一结果" 等
+�� 这是硬性业务规则：即使原 SQL 未包含 LIMIT 或包含错误数量，必须修正为 LIMIT 1
+
+(2) Top-N / 前N / 后N 语义识别
+若用户输入包含：
+
+"top N"、"前N"、"最多N个"、"topN"、"前N条"、"后N"、"倒数N" 等（N 为数字）
+→ 提取 N 值，生成 LIMIT N
+→ 若 N 无法解析（如"前几条"），视为模糊请求，默认 LIMIT 10 并加注释
+
+(3) 排序方向必须与语义一致
+升序（ASC）场景：
+"最低"、"最小"、"最少"、"后N"、"倒数N" → ORDER BY [指标] ASC
+降序（DESC）场景：
+"最高"、"最大"、"最多"、"最好"、"前N"、"top N" → ORDER BY [指标] DESC
+�� 若原 SQL 缺少 ORDER BY，但语义要求极值或 Top-N，则必须推断合理排序字段（如数值列、时间列）并添加 ORDER BY
+�� 若排序方向与语义冲突（如"最高"却用 ASC），必须修正
+
+
+
+✅ 2. LIKE 逻辑校验（ODPS 兼容）
+用户说"以 X 开头" → LIKE 'X%'；"以 X 结尾" → LIKE '%X'
+若 LIKE 模式以 % 开头 → 添加注释：-- ⚠️ 前导通配符可能导致性能下降
+大小写不敏感需求 → 使用 UPPER(col) LIKE UPPER('...') 并注明
+
+
+✅ 3. 指标合理性
+所有维度必须属于知识库维度字段，不能自己臆想捏造
+指标计算口径需要符合知识库内容，如果不准确需要调整准确
+
+✅ 4. ODPS 语法与安全规范
+所有表名、列名用反引号 ` 包裹
+LIMIT 必须位于语句末尾，且不能出现在子查询中（除非使用窗口函数）
+避免 SELECT * 在生产环境？→ 保留 * 若用户未指定字段，但可加注释建议显式列名
+移除 MySQL/PostgreSQL 特有语法（如 LIMIT offset, count → ODPS 仅支持 LIMIT count）
+无 ORDER BY 的 LIMIT 视为无效/危险 → 必须补充合理排序或移除 LIMIT
+
+✅ 5.输出格式要求
+仅输出改写后的 ODPS SQL 语句
+可包含 -- 注释，用于说明：
+为何添加/修正 LIMIT 1（引用极值词或单结果问法）
+排序字段与方向的推断依据
+LIKE 模式修正或性能提示
+禁止输出任何解释、推理过程、JSON、额外文本
+```
+
+```plsql
+{query}
+```
+
+# 后续优化方案
+## 意图理解层
++ **语义澄清机制**：当用户输入模糊时（如"任务ID"），主动引导明确实体类型（投放任务？策略任务？）；
++ **多主题域联合识别**：支持跨域条件组合（如"曝光 + push"）；
++ **时间-行为解耦**：区分"时间范围"与"行为中的时间属性"（如"最近7天登录" vs "注册距今7天"）。
+
+## 知识召回层
++ **意图驱动召回**：将意图解析出的关键词（如"eM+"、"港漂"）作为召回增强信号；
++ **枚举值标准化**：建立业务术语 ↔ 标准字段/值的映射词典（如"年轻人" → `user_age_group IN ('2','3','4')`）。
+
+## SQL 生成层
++ **禁止伪造**：无匹配字段/值时，返回"目前用户查询无法满足"；
++ **支持高级语法**：
+    - `LIKE`（前缀匹配，如"86开头"）；
+    - `GROUP BY + HAVING`（如"活跃≥3个场景的用户数"）；
+    - 安全除法（`NULLIF`）；
++ **性能兜底**：自动添加 `dt = max_pt(...)` 或分区裁剪。
+
+## 系统稳定性
++ **超时控制**：单节点执行超时熔断；
++ **Token 限制**：对长上下文进行截断或分片处理；
++ **错误分类上报**：区分"知识缺失"、"语义模糊"、"生成错误"等根因。
+
+## 总结与建议
+**短期目标**：聚焦单主题域，打造高可靠 NL2SQL 能力；  
+**长期目标**：通过语义澄清 + 知识增强 + 规则引擎，突破 80% 准确率天花板。
+
+
+
+当前主要挑战包括：
+
++ 用户表述模糊、口语化严重；
++ 多主题域、多条件混合查询；
++ 时间语义嵌套复杂；
++ 知识库覆盖不全导致字段/值伪造。
+
+================================================================================
+<!-- FILE_SEPARATOR: 文档二_画像域Text2SQL评测集.md -->
+================================================================================
+
+# 画像域 Text2SQL 评测集（30题）
+
+> 基于画像域 4 张 ADM 表的真实 Schema 构造，覆盖简单（0-2分）/ 中等（3-4分）/ 困难（5-6分）各 10 题。  
+所有字段和枚举值均可追溯到 Schema 文档。
+>
+
+## Schema 速查
+| 表名 | 库名 | 核心能力 |
+| --- | --- | --- |
+| adm_asap_base_user_label_dd | antsg_asap | 用户基础画像（状态/年龄/性别/港漂/认证/设备/LBS/生命周期/价值/风控） |
+| adm_asap_algo_user_label_dd | anthk_sg | 用户行为偏好（权益/展位/业务/品类/eM+/基金潜客/回流沉默预警） |
+| adm_asap_pay_user_label_dd | antsg_asap | 用户交易行为（交易笔数/金额/场景/充值/绑卡/出行/理财） |
+| adm_asap_other_action_user_label_dd | antsg_asap | 用户非交易行为（登录/活跃/领券/核销/push互动/商户关注/积分） |
+
+
+**关联方式**：4 表平级，通过 `user_id` + `dt` JOIN（1:1）
+
+---
+
+## 简单（总分 0-2）
+| 序号 | 难度 | 问题 | 维度A分析 | 维度B分析 | 维度C分析 | 总分 |
+| --- | --- | --- | --- | --- | --- | --- |
+| U001 | 简单 | 昨天iOS和安卓的用户各有多少 | "iOS"→u_os='IOS'（base表.u_os，枚举已验证）；"安卓"→u_os='ANDROID'（base表.u_os）；指标、时间、对象均明确，无歧义；A=0 | 单表查询：antsg_asap.adm_asap_base_user_label_dd；无需JOIN；B=0 | GROUP BY u_os + COUNT DISTINCT user_id，无子查询/窗口函数；C=0 | 0 |
+| U002 | 简单 | 高价值用户里男女比例是多少 | "高价值"→user_value LIKE '1%'（base表.user_value，以'1'开头为高价值，枚举已验证）；"男女"→user_gender='F'/'M'（base表.user_gender）；轻度映射（user_value编码需理解）；A=1 | 单表查询：antsg_asap.adm_asap_base_user_label_dd；无需JOIN；B=0 | CASE WHEN计算男女各自COUNT + 比例，属中等聚合；C=1 | 2 |
+| U003 | 简单 | 帮我看下各生命周期阶段的用户数 | "生命周期"→life_cycle（base表.life_cycle，'1':新手期, '2':成长期, '3':成熟期, '4':衰退期, '5':沉默期, '6':流失期, '61':流失期_非AAU）；"帮我看下"轻度口语；需理解枚举值含义；A=1 | 单表查询：antsg_asap.adm_asap_base_user_label_dd；无需JOIN；B=0 | GROUP BY life_cycle + COUNT DISTINCT，无子查询/窗口；C=0 | 1 |
+| U004 | 简单 | eM+高潜用户目前有多少人 | "eM+高潜"→em_potential_segment='高潜'（algo表.em_potential_segment，枚举值：高潜/中潜/低潜，已验证）；需简单映射；A=1 | 单表查询：anthk_sg.adm_asap_algo_user_label_dd；无需JOIN；B=0 | WHERE + COUNT DISTINCT，无子查询/窗口；C=0 | 1 |
+| U005 | 简单 | 港漂用户和永久居民各有多少 | "港漂"→is_hk_drifter='CX'（base表.is_hk_drifter，CX=非永久居民）；"永久居民"→is_hk_drifter='AX'（base表.is_hk_drifter，AX=永久居民）；需枚举映射；A=1 | 单表查询：antsg_asap.adm_asap_base_user_label_dd；无需JOIN；B=0 | GROUP BY is_hk_drifter + COUNT DISTINCT；C=0 | 1 |
+| U006 | 简单 | 近30天本地线下交易超过5笔的用户有多少 | "本地线下交易"→local_offline_scene_cnt_r30d（pay表.local_offline_scene_cnt_r30d）；"超过5笔"→>5；指标、时间、条件均明确；A=0 | 单表查询：antsg_asap.adm_asap_pay_user_label_dd；无需JOIN；B=0 | WHERE条件 + COUNT DISTINCT，无子查询/窗口；C=0 | 0 |
+| U007 | 简单 | 沉默风险高的用户有多少人 | "沉默风险高"→silence_risk_level='high'（algo表.silence_risk_level，枚举值：high/medium/low，已验证）；需简单映射；A=1 | 单表查询：anthk_sg.adm_asap_algo_user_label_dd；无需JOIN；B=0 | WHERE + COUNT DISTINCT；C=0 | 1 |
+| U008 | 简单 | 积分偏好高的用户中，红包偏好也高的有多少 | "积分偏好高"→pts_prefer_level='high'（algo表.pts_prefer_level）；"红包偏好高"→rp_prefer_level='high'（algo表.rp_prefer_level）；两个偏好字段在同一张表，轻度映射；A=1 | 单表查询：anthk_sg.adm_asap_algo_user_label_dd（两字段均在algo表）；无需JOIN；B=0 | WHERE双条件 + COUNT DISTINCT；C=0 | 1 |
+| U009 | 简单 | 各KYC认证等级的用户分布看下 | "KYC认证等级"→kyc_level（base表.kyc_level，枚举值：CDD0/CDD1/CDD2/EKYC/UNKNOWN_KYC_LEVEL，已验证）；"看下"轻度口语；需枚举映射；A=1 | 单表查询：antsg_asap.adm_asap_base_user_label_dd；无需JOIN；B=0 | GROUP BY kyc_level + COUNT DISTINCT；C=0 | 1 |
+| U010 | 简单 | 近30天push触达次数最多的top10用户是谁 | "push触达次数"→user_push_exposure_pv_r30d（other_action表.user_push_exposure_pv_r30d，数值类型）；"最多的top10"语义明确但需排序；A=1 | 单表查询：antsg_asap.adm_asap_other_action_user_label_dd；无需JOIN；B=0 | ORDER BY DESC + LIMIT 10，属topN排序；C=1 | 2 |
+
+
+---
+
+## 中等（总分 3-4）
+| 序号 | 难度 | 问题 | 维度A分析 | 维度B分析 | 维度C分析 | 总分 |
+| --- | --- | --- | --- | --- | --- | --- |
+| U011 | 中等 | 高价值用户中积分偏好高的有多少人，低价值用户中呢 | "高价值"→user_value LIKE '1%'（base表.user_value）；"低价值"→user_value LIKE '8%'（base表.user_value）；"积分偏好高"→pts_prefer_level='high'（algo表.pts_prefer_level）；轻度映射+口语"呢"；A=1 | 2张表：antsg_asap.adm_asap_base_user_label_dd（user_value） + anthk_sg.adm_asap_algo_user_label_dd（pts_prefer_level）；JOIN Key: user_id + dt；B=1 | CASE WHEN按user_value分组 + COUNT DISTINCT对比统计；C=1 | 3 |
+| U012 | 中等 | 沉默期用户中回流潜力高的占比多少 | "沉默期"→life_cycle='5'（base表.life_cycle）；"回流潜力高"→reactivation_level='high'（algo表.reactivation_level，枚举已验证）；需跨表映射；A=1 | 2张表：antsg_asap.adm_asap_base_user_label_dd（life_cycle） + anthk_sg.adm_asap_algo_user_label_dd（reactivation_level）；JOIN Key: user_id + dt；B=1 | 子查询计算总沉默期人数 + JOIN后COUNT高回流人数 + 比例计算；C=1 | 3 |
+| U013 | 中等 | 各年龄段用户近30天的平均交易金额是多少，哪个年龄段消费力最强 | "年龄段"→user_age_group（base表.user_age_group，枚举'0'-'9'）；"平均交易金额"→AVG(transact_amt_r30d)（pay表.transact_amt_r30d）；"消费力最强"轻度口语；A=1 | 2张表：antsg_asap.adm_asap_base_user_label_dd（user_age_group） + antsg_asap.adm_asap_pay_user_label_dd（transact_amt_r30d）；JOIN Key: user_id + dt；B=1 | AVG + GROUP BY + ORDER BY DESC，属排序聚合；C=1 | 3 |
+| U014 | 中等 | 新手期用户中push互动高频的有多少人，他们主要在哪些区域活跃 | "新手期"→life_cycle='1'（base表.life_cycle）；"push互动高频"→user_push_activity_level='高频'（other_action表.user_push_activity_level，枚举值：高频/中频/低频，已验证）；需文档映射"高频"概念；"在哪些区域活跃"→active_region_r30d（base表）；A=2 | 2张表：antsg_asap.adm_asap_base_user_label_dd（life_cycle, active_region_r30d） + antsg_asap.adm_asap_other_action_user_label_dd（user_push_activity_level）；JOIN Key: user_id + dt；B=1 | JOIN + GROUP BY active_region_r30d + ORDER BY；C=1 | 4 |
+| U015 | 中等 | eM+高潜和基金高潜的重叠用户有多少，他们的注册号码分布呢 | "eM+高潜"→em_potential_segment='高潜'（algo表）；"基金高潜"→fund_potential_segment='高潜'（algo表）；"重叠"需理解为双条件交集；"注册号码"→register_number（base表，'86'/'852'/'853'/'其他'）；A=2 | 2张表：anthk_sg.adm_asap_algo_user_label_dd（em_potential_segment, fund_potential_segment） + antsg_asap.adm_asap_base_user_label_dd（register_number）；JOIN Key: user_id + dt；B=1 | JOIN + 多WHERE条件 + GROUP BY register_number；C=1 | 4 |
+| U016 | 中等 | 提频潜力高的用户近30天交易笔数和充值金额是什么水平 | "提频潜力高"→freq_uplift_level='high'（algo表.freq_uplift_level，枚举已验证）；"交易笔数"→transact_num_r30d（pay表）；"充值金额"→topup_amt_r30d（pay表）；需简单映射；A=1 | 2张表：anthk_sg.adm_asap_algo_user_label_dd（freq_uplift_level） + antsg_asap.adm_asap_pay_user_label_dd（transact_num_r30d, topup_amt_r30d）；JOIN Key: user_id + dt；B=1 | JOIN + AVG/SUM聚合；C=1 | 3 |
+| U017 | 中等 | 近7天腰封点击超过3次的用户，他们的交易金额平均是多少 | "腰封点击"→paper_clk_r7d（other_action表.paper_clk_r7d，近7天腰封点击次数）；"交易金额"→transact_amt_r30d（pay表）；需简单映射；A=1 | 2张表：antsg_asap.adm_asap_other_action_user_label_dd（paper_clk_r7d） + antsg_asap.adm_asap_pay_user_label_dd（transact_amt_r30d）；JOIN Key: user_id + dt；B=1 | WHERE条件 + JOIN + AVG；C=1 | 3 |
+| U018 | 中等 | 衰退期用户中近30天还有交易的人数占比多少，跟沉默期比呢 | "衰退期"→life_cycle='4'（base表）；"还有交易"→transact_num_r30d>0（pay表）；"跟沉默期比呢"→life_cycle='5'需对比，口语化"呢"；需理解生命周期枚举+交易活跃度概念；A=2 | 2张表：antsg_asap.adm_asap_base_user_label_dd（life_cycle） + antsg_asap.adm_asap_pay_user_label_dd（transact_num_r30d）；JOIN Key: user_id + dt；B=1 | CASE WHEN分两个人群 + 占比计算；C=1 | 4 |
+| U019 | 中等 | 绑了3张以上卡的用户和只绑1张的，领券核销行为有啥差异 | "绑了3张以上卡"→effective_bind_card_cnt>=3（pay表）；"只绑1张"→effective_bind_card_cnt=1（pay表）；"领券"→send_cnt_r30d（other_action表）；"核销"→use_cnt_r30d（other_action表）；"有啥差异"口语化；需跨表理解行为差异；A=2 | 2张表：antsg_asap.adm_asap_pay_user_label_dd（effective_bind_card_cnt） + antsg_asap.adm_asap_other_action_user_label_dd（send_cnt_r30d, use_cnt_r30d）；JOIN Key: user_id + dt；B=1 | CASE WHEN分组 + AVG对比统计；C=1 | 4 |
+| U020 | 中等 | 近30天push点击超过5次的用户，积分和红包偏好分布怎么样 | "push点击"→user_push_cilck_pv_r30d（other_action表，数值类型）；"积分偏好"→pts_prefer_level（algo表）；"红包偏好"→rp_prefer_level（algo表）；"怎么样"轻度口语；A=1 | 2张表：antsg_asap.adm_asap_other_action_user_label_dd（user_push_cilck_pv_r30d） + anthk_sg.adm_asap_algo_user_label_dd（pts_prefer_level, rp_prefer_level）；JOIN Key: user_id + dt；B=1 | JOIN + GROUP BY多偏好字段；C=1 | 3 |
+
+
+---
+
+## 困难（总分 5-6）
+| 序号 | 难度 | 问题 | 维度A分析 | 维度B分析 | 维度C分析 | 总分 |
+| --- | --- | --- | --- | --- | --- | --- |
+| U021 | 困难 | eM+高潜且支付高频高金额的用户有多少，这批人的年龄和性别分布是什么样 | "eM+高潜"→em_potential_segment='高潜'（algo表）；"支付高频高金额"→pay_level_r30d='G1-R30D高频次,高金额'（pay表.pay_level_r30d，G1对应高频+高金额，需文档理解G分级）；"年龄和性别"→user_age_group, user_gender（base表）；多字段跨表，需文档依赖；A=2 | 3张表：anthk_sg.adm_asap_algo_user_label_dd（em_potential_segment） + antsg_asap.adm_asap_pay_user_label_dd（pay_level_r30d） + antsg_asap.adm_asap_base_user_label_dd（user_age_group, user_gender）；JOIN Key: user_id + dt；B=2 | 3表JOIN + GROUP BY年龄+性别；C=1 | 5 |
+| U022 | 困难 | 沉默期+高回流潜力的用户，近30天交易金额和充值金额跟成长期用户比怎么样 | "沉默期"→life_cycle='5'（base表）；"高回流潜力"→reactivation_level='high'（algo表）；"成长期"→life_cycle='2'（base表）；"跟…比怎么样"强口语；需构造双人群对比，多业务概念依赖文档；A=2 | 3张表：antsg_asap.adm_asap_base_user_label_dd（life_cycle） + anthk_sg.adm_asap_algo_user_label_dd（reactivation_level） + antsg_asap.adm_asap_pay_user_label_dd（transact_amt_r30d, topup_amt_r30d）；B=2 | CTE构造双人群 + UNION ALL对比 + 多表JOIN，属分步聚合；C=2 | 6 |
+| U023 | 困难 | 高价值港漂女性中eM+高营销敏感度的有多少，她们偏好什么权益 | "高价值"→user_value LIKE '1%'（base表）；"港漂"→is_hk_drifter='CX'（base表）；"女性"→user_gender='F'（base表）；"eM+高营销敏感度"→em_marketing_sensitivity='高营销敏感度'（algo表，枚举已验证）；"偏好什么权益"需看pts/rp/cou_prefer_level等多个偏好字段（algo表）；多重条件+依赖文档；A=2 | 2张表：antsg_asap.adm_asap_base_user_label_dd + anthk_sg.adm_asap_algo_user_label_dd；JOIN Key: user_id + dt；B=1 | 多CASE WHEN统计各偏好维度的高偏好人数 + ORDER BY选出最高偏好；C=2 | 5 |
+| U024 | 困难 | 新手期用户中30天内线上交易超过10笔且push点击超过3次的，他们的年龄和注册来源分布 | "新手期"→life_cycle='1'（base表）；"线上交易"→online_scene_cnt_r30d（pay表）；"push点击"→user_push_cilck_pv_r30d（other_action表）；"年龄"→user_age_group（base表）；"注册来源"→register_from（base表）；多重跨表条件组合；A=2 | 3张表：antsg_asap.adm_asap_base_user_label_dd（life_cycle, user_age_group, register_from） + antsg_asap.adm_asap_pay_user_label_dd（online_scene_cnt_r30d） + antsg_asap.adm_asap_other_action_user_label_dd（user_push_cilck_pv_r30d）；B=2 | 3表JOIN + 多WHERE条件 + GROUP BY；C=1 | 5 |
+| U025 | 困难 | 各生命周期用户的近7天和近30天交易笔数对比，哪个阶段交易在下滑 | "各生命周期"→life_cycle（base表，6个阶段）；"近7天交易笔数"→transact_num_r7d（pay表）；"近30天交易笔数"→transact_num_r30d（pay表）；"交易在下滑"需理解为7天占30天比例偏低=趋势下降，业务口径推断；A=2 | 2张表：antsg_asap.adm_asap_base_user_label_dd（life_cycle） + antsg_asap.adm_asap_pay_user_label_dd（transact_num_r7d, transact_num_r30d）；B=1 | 双时间窗口AVG对比 + 计算变化率 + 窗口函数RANK排序找下滑最严重的阶段；C=2 | 5 |
+| U026 | 困难 | 沉默风险高且积分偏好也高的用户，他们的交易笔数和登录频率是什么水平 | "沉默风险高"→silence_risk_level='high'（algo表）；"积分偏好高"→pts_prefer_level='high'（algo表）；"交易笔数"→transact_num_r30d（pay表）；"登录频率"→login_cnt_r30d（other_action表）；多字段跨3表；A=2 | 3张表：anthk_sg.adm_asap_algo_user_label_dd（silence_risk_level, pts_prefer_level） + antsg_asap.adm_asap_pay_user_label_dd（transact_num_r30d） + antsg_asap.adm_asap_other_action_user_label_dd（login_cnt_r30d）；B=2 | 3表JOIN + AVG/SUM统计；C=1 | 5 |
+| U027 | 困难 | push高频用户中高价值和低价值的近30天交易金额和充值笔数差多少，按年龄段拆开看 | "push高频"→user_push_activity_level='高频'（other_action表）；"高价值"→user_value LIKE '1%'（base表）；"低价值"→user_value LIKE '8%'（base表）；"交易金额"→transact_amt_r30d（pay表）；"充值笔数"→topup_cnt_r30d（pay表）；"按年龄段"→user_age_group（base表）；多重业务概念+口语"差多少"；A=2 | 3张表：antsg_asap.adm_asap_other_action_user_label_dd + antsg_asap.adm_asap_base_user_label_dd + antsg_asap.adm_asap_pay_user_label_dd；B=2 | CTE + CASE WHEN双人群 + GROUP BY年龄段 + 多指标对比，属分步聚合；C=2 | 6 |
+| U028 | 困难 | 基金高潜用户的近30天充值行为跟非高潜用户比怎么样，按年龄段看 | "基金高潜"→fund_potential_segment='高潜'（algo表）；"充值行为"→topup_cnt_r30d, topup_amt_r30d（pay表）；"非高潜"→fund_potential_segment IN ('中潜','低潜')（algo表）；"按年龄段"→user_age_group（base表）；"跟…比怎么样"口语；A=2 | 3张表：anthk_sg.adm_asap_algo_user_label_dd + antsg_asap.adm_asap_pay_user_label_dd + antsg_asap.adm_asap_base_user_label_dd；B=2 | CTE构造双人群 + GROUP BY年龄段 + JOIN对比；C=1 | 5 |
+| U029 | 困难 | 衰退期和沉默期用户中，近30天有领券但没核销的人占多少，这些"只领不用"的用户偏好什么权益 | "衰退期"→life_cycle='4'（base表）；"沉默期"→life_cycle='5'（base表）；"领券没核销"→send_cnt_r30d>0 AND use_cnt_r30d=0（other_action表）；"只领不用"口语化描述；"偏好什么权益"→需看pts/rp/cou_prefer_level等多个偏好字段（algo表）；A=2 | 3张表：antsg_asap.adm_asap_base_user_label_dd + antsg_asap.adm_asap_other_action_user_label_dd + anthk_sg.adm_asap_algo_user_label_dd；B=2 | CTE构造人群 + 占比计算 + 多CASE WHEN偏好分析，属分步聚合；C=2 | 6 |
+| U030 | 困难 | 近30天登录超过10次但交易不到3笔的用户，他们的eM+潜客分层和沉默风险分布怎样 | "登录次数"→login_cnt_r30d（other_action表）；"交易笔数"→transact_num_r30d（pay表）；"eM+潜客分层"→em_potential_segment（algo表，高潜/中潜/低潜）；"沉默风险"→silence_risk_level（algo表，high/medium/low）；多字段跨3表；A=2 | 3张表：antsg_asap.adm_asap_other_action_user_label_dd（login_cnt_r30d） + antsg_asap.adm_asap_pay_user_label_dd（transact_num_r30d） + anthk_sg.adm_asap_algo_user_label_dd（em_potential_segment, silence_risk_level）；B=2 | 3表JOIN + GROUP BY双维度分布；C=1 | 5 |
+
+
+================================================================================
+<!-- FILE_SEPARATOR: 画像域_01_Schema总览.md -->
+================================================================================
+
+# 画像域 Schema 总览（NL2SQL）
+
+---
+
+## 一、表清单
+| **层级** | **表名** | **完整路径** | **核心能力** | **何时拉取** | **详情文档** |
+| --- | --- | --- | --- | --- | --- |
+| ADM | adm_asap_base_user_label_dd | antsg_asap.adm_asap_base_user_label_dd | 用户基础画像（状态/年龄/性别/港漂/注册/认证/设备/LBS/生命周期/价值/风控） | 查询用户属性、人群分层时 | [查看详情](https://yuque.antfin.com/gaespg/tkz7r8/cdrx6umpk9zfsrix) |
+| ADM | adm_asap_algo_user_label_dd | anthk_sg.adm_asap_algo_user_label_dd | 用户行为偏好（权益/展位/业务/品类/eM+/基金潜客） | 查询用户偏好、潜客分层时 | [查看详情](https://yuque.antfin.com/gaespg/tkz7r8/qyw4hbm5wm0ggu7e) |
+| ADM | adm_asap_pay_user_label_dd | antsg_asap.adm_asap_pay_user_label_dd | 用户交易行为画像（交易频次/金额/场景/支付渠道/退款/用券） | 查询交易特征、消费行为时 | [查看详情](https://yuque.antfin.com/gaespg/tkz7r8/yu5kyeafn39tu5k7) |
+| ADM | adm_asap_other_action_user_label_dd | antsg_asap.adm_asap_other_action_user_label_dd | 用户非交易行为画像（活跃/功能使用/浏览/搜索/分享/消息） | 查询活跃度、功能使用时 | [查看详情](https://yuque.antfin.com/gaespg/tkz7r8/ww4bcy09fihm1q4s) |
+
+
+---
+
+## 二、表关联关系
+```plain
+adm_asap_base_user_label_dd (user_id, dt)
+adm_asap_algo_user_label_dd (user_id, dt)
+adm_asap_pay_user_label_dd (user_id, dt)
+adm_asap_other_action_user_label_dd (user_id, dt)
+```
+
+**关联方式：** 4张表均为平级关系，通过 `user_id` + `dt` 进行 JOIN，均为 1:1。  
+**选表原则：查询维度在哪张表，直接用那张表统计，无需强制关联 base 表。** 仅在需要跨表字段组合时才做 JOIN。
+
+---
+
+## 三、选表规则（NL2SQL 核心）
+| 查询意图 | 使用表 |
+| --- | --- |
+| 用户状态/年龄/性别/认证/地区/生命周期/价值/风控 | adm_asap_base_user_label_dd |
+| 权益偏好/展位偏好/业务偏好/品类偏好/eM+潜客/基金潜客/回流沉默预警 | adm_asap_algo_user_label_dd |
+| 交易频次/交易金额/交易场景/支付渠道/退款/用券 | adm_asap_pay_user_label_dd |
+| 活跃度/登录次数/扫码/转账/页面浏览/搜索/push互动 | adm_asap_other_action_user_label_dd |
+| 需要跨表字段组合（如：eM+高潜用户的年龄分布） | 各表子查询过滤后 JOIN |
+
+
+```plain
+选表判断流程：
+查询所需字段全在一张表？
+  是 → 直接单表查询，无需 JOIN
+  否 → 各表子查询先过滤 dt + 业务条件，再按 user_id + dt JOIN
+```
+
+---
+
+## 四、指标口径（NL2SQL 核心）
+### 4.1 用户基础指标（基于 adm_asap_base_user_label_dd）
+| 指标名称 | 计算方式 | 说明 |
+| --- | --- | --- |
+| 用户数 | COUNT(DISTINCT user_id) | 去重用户数 |
+| 年龄平均值 | AVG(user_age) WHERE user_age > 0 | 排除 -1（无年龄）的用户 |
+| 港漂占比 | COUNT(CASE WHEN is_hk_drifter = 'CX' THEN 1 END) / NULLIF(COUNT(*), 0) | CX = 非永久居民 |
+| 女性占比 | COUNT(CASE WHEN user_gender = 'F' THEN 1 END) / NULLIF(COUNT(*), 0) | - |
+| 认证率 | COUNT(CASE WHEN new_user_level = 'verified' THEN 1 END) / NULLIF(COUNT(*), 0) | - |
+| KYC率 | COUNT(CASE WHEN is_kyc_flag = '1' THEN 1 END) / NULLIF(COUNT(*), 0) | - |
+| 高价值用户数 | COUNT(CASE WHEN user_value LIKE '1%' THEN 1 END) | user_value '1' 开头为高价值 |
+| 新用户数（新手期） | COUNT(CASE WHEN life_cycle = '1' THEN 1 END) | - |
+| 沉默用户数 | COUNT(CASE WHEN life_cycle = '5' THEN 1 END) | - |
+| 流失用户数 | COUNT(CASE WHEN life_cycle IN ('6', '61') THEN 1 END) | - |
+
+
+### 4.2 偏好与潜客指标（基于 adm_asap_algo_user_label_dd）
+| 指标名称 | 计算方式 |
+| --- | --- |
+| 高积分偏好用户数 | COUNT(CASE WHEN pts_prefer_level = 'high' THEN 1 END) |
+| 腰封高偏好用户占比 | COUNT(CASE WHEN banner_prefer_level = 'high' THEN 1 END) / NULLIF(COUNT(*), 0) |
+| eM+高潜用户数 | COUNT(CASE WHEN em_potential_segment = '高潜' THEN 1 END) |
+| eM+高价值用户数 | COUNT(CASE WHEN em_value_user = '1' THEN 1 END) |
+| 基金高潜用户数 | COUNT(CASE WHEN fund_potential_segment = '高潜' THEN 1 END) |
+| 线上高偏好用户数 | COUNT(CASE WHEN ol_prefer_level = 'high' THEN 1 END) |
+| 回流高潜用户数 | COUNT(CASE WHEN reactivation_level = 'high' THEN 1 END) |
+| 沉默风险高用户数 | COUNT(CASE WHEN silence_risk_level = 'high' THEN 1 END) |
+
+
+### 4.3 交易指标（基于 adm_asap_pay_user_label_dd）
+| 指标名称 | 计算方式 |
+| --- | --- |
+| 高频交易用户数 | COUNT(CASE WHEN trx_freq_level_r30d = 'high' THEN 1 END) |
+| 高消费用户数 | COUNT(CASE WHEN trx_amt_level_r30d = 'high' THEN 1 END) |
+| 平均近30天交易笔均金额 | AVG(avg_trx_amt_r30d) |
+| 退款率（平均） | AVG(refund_ratio_r30d) |
+| 用券率（平均） | AVG(coupon_usage_ratio_r30d) |
+| 线上交易偏好用户占比 | COUNT(CASE WHEN primary_trx_scene_r30d = '线上' THEN 1 END) / NULLIF(COUNT(*), 0) |
+
+
+### 4.4 活跃度指标（基于 adm_asap_other_action_user_label_dd）
+| 指标名称 | 计算方式 |
+| --- | --- |
+| 月活跃用户数 | COUNT(CASE WHEN is_30d_active = '1' THEN 1 END) |
+| 周活跃用户数 | COUNT(CASE WHEN is_7d_active = '1' THEN 1 END) |
+| 沉默用户数（30天未活跃） | COUNT(CASE WHEN last_active_days > 30 THEN 1 END) |
+| 高活跃用户占比 | COUNT(CASE WHEN active_freq_level_r30d = 'high' THEN 1 END) / NULLIF(COUNT(*), 0) |
+| 平均登录次数（近30天） | AVG(login_cnt_r30d) |
+| push点击用户数 | COUNT(CASE WHEN is_push_click_user = '1' THEN 1 END) |
+
+
+---
+
+## 五、业务术语映射（NL2SQL 核心）
+### 5.1 用户状态与分层
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| 正常用户 | WHERE user_status = 'T' |
+| 注销用户 | WHERE user_status = 'C' |
+| 冻结用户 | WHERE user_status = 'B' |
+| 新用户（新手期） | WHERE life_cycle = '1' |
+| 活跃用户（成长期/成熟期） | WHERE life_cycle IN ('2', '3') |
+| 沉默用户（沉默期） | WHERE life_cycle = '5' |
+| 流失用户（流失期） | WHERE life_cycle IN ('6', '61') |
+| 高价值用户 | WHERE user_value LIKE '1%' OR user_history_value = '高' |
+| 低价值用户 | WHERE user_value LIKE '8%' OR user_history_value = '低' |
+| 港漂用户 | WHERE is_hk_drifter = 'CX' |
+| 本地用户（永久居民） | WHERE is_hk_drifter = 'AX' |
+| 菲佣用户 | WHERE is_ph_maid_flag = '1' |
+| 已认证用户 | WHERE new_user_level = 'verified' OR is_kyc_flag = '1' |
+| 未认证用户 | WHERE new_user_level = 'unverified' |
+| 商户用户（收钱码） | WHERE is_pay_qr = '1' |
+| 营销黑名单（需排除） | WHERE is_promo_black_flag = '0' AND is_black_list = '0' |
+
+
+### 5.2 设备与位置
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| iOS用户 | WHERE u_os = 'IOS' OR is_login_ios = '1' |
+| 安卓用户 | WHERE u_os = 'ANDROID' OR is_login_android = '1' |
+| 英文偏好用户 | WHERE pf_language = 'en_US' OR is_lang_en = '1' |
+| 中文偏好用户 | WHERE pf_language IN ('zh_HK', 'zh_Hans') OR is_lang_zh = '1' |
+| 内地用户 | WHERE register_number = '86' OR active_region_r30d = '內地' OR is_lbs_cn = '1' |
+| 香港用户 | WHERE register_number = '852' OR active_region_r30d = '香港' OR is_lbs_hk = '1' |
+| 澳门用户 | WHERE register_number = '853' |
+
+
+### 5.3 年龄分段
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| 18岁以下 | WHERE user_age_group = '1' OR user_age < 18 |
+| 18-25岁 | WHERE user_age_group IN ('2', '3') OR (user_age >= 18 AND user_age <= 25) |
+| 26-35岁 | WHERE user_age_group IN ('4', '5') OR (user_age >= 26 AND user_age <= 35) |
+| 36-50岁 | WHERE user_age_group IN ('6', '7') OR (user_age >= 36 AND user_age <= 50) |
+| 50岁以上 | WHERE user_age_group IN ('8', '9') OR user_age > 50 |
+| 年轻用户 | WHERE user_age_group IN ('1', '2', '3', '4') |
+| 中年用户 | WHERE user_age_group IN ('5', '6', '7') |
+| 老年用户 | WHERE user_age_group IN ('8', '9') |
+
+
+### 5.4 偏好等级通用映射
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| 高偏好 | WHERE xxx_prefer_level = 'high' |
+| 中偏好 | WHERE xxx_prefer_level = 'medium' |
+| 低偏好 | WHERE xxx_prefer_level = 'low' |
+| 偏好某业务 | WHERE xxx_prefer_level IN ('high', 'medium') |
+
+
+### 5.5 潜客分层
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| eM+高潜用户 | WHERE em_potential_segment = '高潜' |
+| eM+中潜用户 | WHERE em_potential_segment = '中潜' |
+| eM+高价值用户 | WHERE em_value_user = '1' |
+| eM+营销敏感用户 | WHERE em_marketing_sensitivity = '高营销敏感度' |
+| 基金高潜用户 | WHERE fund_potential_segment = '高潜' |
+| 回流潜力高用户 | WHERE reactivation_level = 'high' |
+| 沉默风险高用户 | WHERE silence_risk_level = 'high' |
+| 提频潜力高用户 | WHERE freq_uplift_level = 'high' |
+
+
+### 5.6 交易行为
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| 高频交易用户 | WHERE trx_freq_level_r30d = 'high' |
+| 高消费用户 | WHERE trx_amt_level_r30d = 'high' |
+| 线上支付偏好 | WHERE primary_trx_scene_r30d = '线上' OR ol_prefer_level = 'high' |
+| 线下支付偏好 | WHERE primary_trx_scene_r30d = '本地线下' OR ll_prefer_level = 'high' |
+| 跨境支付偏好 | WHERE primary_trx_scene_r30d = '跨境线下' OR cl_prefer_level = 'high' |
+| 缴费偏好用户 | WHERE pt_prefer_level = 'high' OR primary_trx_scene_r30d = '缴费' |
+| 转账偏好用户 | WHERE tf_prefer_level = 'high' OR primary_trx_scene_r30d = '转账' |
+| 交通支付偏好 | WHERE tra_prefer_level = 'high' OR primary_trx_scene_r30d = '交通' |
+| 周末交易偏好 | WHERE is_weekend_trx_prefer = '1' |
+| 高退款用户 | WHERE refund_ratio_r30d > 0.1 |
+| 喜欢用券用户 | WHERE coupon_usage_ratio_r30d > 0.5 |
+
+
+### 5.7 活跃度
+| 用户说的 | SQL 写法 |
+| --- | --- |
+| 活跃用户（近7天） | WHERE is_7d_active = '1' OR active_freq_level_r7d = 'high' |
+| 活跃用户（近30天） | WHERE is_30d_active = '1' OR active_freq_level_r30d = 'high' |
+| 沉默用户（7天未活跃） | WHERE last_active_days BETWEEN 7 AND 30 |
+| 沉默用户（30天未活跃） | WHERE last_active_days > 30 |
+| 流失用户（90天未活跃） | WHERE last_active_days > 90 |
+| 连续活跃用户 | WHERE continuous_active_days >= 7 |
+| push点击用户 | WHERE is_push_click_user = '1' OR push_click_cnt_r30d > 0 |
+
+
+---
+
+## 六、核心字段速查
+### 6.1 adm_asap_base_user_label_dd（用户基础画像）
+| 字段名 | 类型 | 描述 | 值域/示例 |
+| --- | --- | --- | --- |
+| user_id | string | 用户ID | - |
+| user_status | string | 用户状态 | 'T':正常, 'Q':快速注册, 'C':注销, 'B':冻结 |
+| user_age | int | 用户年龄 | -1:无年龄, >0:正常年龄 |
+| user_age_group | string | 用户年龄分级 | '0':未知, '1':18岁以下, '2':18-21, '3':22-25, '4':26-30, '5':31-35, '6':36-40, '7':41-50, '8':51-60, '9':60以上 |
+| user_gender | string | 性别 | 'F':女, 'M':男 |
+| is_hk_drifter | string | 是否港漂 | 'CX':非永久居民, 'AX':永久居民 |
+| is_ph_maid_flag | string | 是否菲佣 | '1':是, '0':否 |
+| new_user_level | string | 新用户认证等级 | 'verified', 'unverified', 'pre-existing' |
+| kyc_level | string | KYC等级 | 'CDD0', 'CDD1', 'CDD2', 'EKYC', 'UNKNOWN' |
+| is_kyc_flag | string | 是否KYC | '1':是, '0':否 |
+| life_cycle | string | 用户生命周期 | '1':新手期, '2':成长期, '3':成熟期, '4':衰退期, '5':沉默期, '6':流失期 |
+| user_value | string | 用户价值 | '1' 开头为高价值 |
+| register_number | string | 注册号码地区 | '86':内地, '852':香港, '853':澳门 |
+| pf_language | string | 语言设置 | 'en_US', 'zh_HK', 'zh_Hans' |
+| u_os | string | 操作系统 | 'ANDROID', 'IOS' |
+| active_region_r30d | string | 近30天活跃区域 | 內地/香港/日本/澳門/泰國/菲律賓... |
+| is_lbs_hk | string | 是否LBS香港 | '1':是, '0':否 |
+| is_lbs_cn | string | 是否LBS内地 | '1':是, '0':否 |
+| is_pay_qr | string | 是否收钱码用户 | '1':是, '0':否 |
+| is_promo_black_flag | string | 营销黑名单 | '1':是（需排除）, '0':否 |
+| is_black_list | string | 风控营销黑名单 | '1':是（需排除）, '0':否 |
+| dt | string | 分区日期 | yyyyMMdd |
+
+
+### 6.2 adm_asap_algo_user_label_dd（用户行为偏好）
+| 字段名 | 描述 | 值域 |
+| --- | --- | --- |
+| pts_prefer_level | 积分权益偏好 | 'high', 'medium', 'low' |
+| rp_prefer_level | 红包权益偏好 | 'high', 'medium', 'low' |
+| cou_prefer_level | 优惠领券偏好 | 'high', 'medium', 'low' |
+| banner_prefer_level | 首页腰封Banner偏好 | 'high', 'medium', 'low' |
+| feeds_prefer_level | 首页feeds偏好 | 'high', 'medium', 'low' |
+| ol_prefer_level | 线上偏好 | 'high', 'medium', 'low' |
+| ll_prefer_level | 本地线下偏好 | 'high', 'medium', 'low' |
+| cl_prefer_level | 跨境线下偏好 | 'high', 'medium', 'low' |
+| fin01_prefer_level | 金融_EM+偏好 | 'high', 'medium', 'low' |
+| em_potential_segment | eM+开通预测 | '高潜', '中潜', '低潜' |
+| em_value_user | eM+用户价值 | '1':高价值, '2':中价值, '3':低价值 |
+| em_marketing_sensitivity | eM+营销敏感度 | '高营销敏感度', '低营销敏感度' |
+| fund_potential_segment | 基金开通预测 | '高潜', '中潜', '低潜' |
+| reactivation_level | 用户回流潜力 | 'high', 'medium', 'low' |
+| silence_risk_level | 用户沉默预警 | 'high', 'medium', 'low' |
+| freq_uplift_level | 用户提频潜力 | 'high', 'medium', 'low' |
+| dt | 分区日期 | yyyyMMdd |
+
+
+### 6.3 adm_asap_pay_user_label_dd（用户交易行为）
+| 字段名 | 描述 | 类型 |
+| --- | --- | --- |
+| trx_freq_level_r7d / r30d | 交易频次等级 | 'high', 'medium', 'low' |
+| trx_amt_level_r7d / r30d | 交易金额等级 | 'high', 'medium', 'low' |
+| avg_trx_amt_r7d / r30d | 笔均交易金额 | decimal |
+| primary_trx_scene_r30d | 近30天主交易场景 | 线上/本地线下/跨境线下/缴费/转账... |
+| primary_trx_hour_r7d | 近7天主交易时段 | 'morning', 'noon', 'afternoon', 'evening', 'night' |
+| is_weekend_trx_prefer | 是否偏好周末交易 | '1':是, '0':否 |
+| primary_pay_channel_r7d | 近7天主支付渠道 | 余额/银行卡/信用卡... |
+| refund_cnt_r7d / r30d | 退款笔数 | int |
+| refund_ratio_r30d | 近30天退款率 | decimal |
+| coupon_usage_cnt_r30d | 近30天用券笔数 | int |
+| coupon_usage_ratio_r30d | 近30天用券率 | decimal |
+| dt | 分区日期 | yyyyMMdd |
+
+
+### 6.4 adm_asap_other_action_user_label_dd（用户非交易行为）
+| 字段名 | 描述 | 类型 |
+| --- | --- | --- |
+| active_freq_level_r7d / r30d | 活跃频次等级 | 'high', 'medium', 'low' |
+| last_active_days | 距今未活跃天数 | int |
+| is_7d_active | 近7天是否活跃 | '1':是, '0':否 |
+| is_30d_active | 近30天是否活跃 | '1':是, '0':否 |
+| continuous_active_days | 连续活跃天数 | int |
+| login_cnt_r7d / r30d | 登录次数 | int |
+| scan_cnt_r7d / r30d | 扫码次数 | int |
+| page_view_cnt_r7d / r30d | 页面浏览次数 | int |
+| banner_click_cnt_r7d | 近7天Banner点击次数 | int |
+| feeds_click_cnt_r7d | 近7天feeds点击次数 | int |
+| search_cnt_r7d / r30d | 搜索次数 | int |
+| push_click_cnt_r7d / r30d | push点击次数 | int |
+| is_push_click_user | 是否点击过push | '1':是, '0':否 |
+| dt | 分区日期 | yyyyMMdd |
+
+
+---
+
+## 七、常用查询场景 SQL 示例
+### 7.1 查询高价值用户画像分布（单表 base）
+```sql
+-- 查询维度（年龄/性别/港漂）均在 base 表，直接单表查
+SELECT
+    user_age_group,
+    user_gender,
+    is_hk_drifter,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM antsg_asap.adm_asap_base_user_label_dd
+WHERE dt = '${bizdate}'
+  AND user_value LIKE '1%'
+  AND is_promo_black_flag = '0'
+GROUP BY user_age_group, user_gender, is_hk_drifter
+ORDER BY user_cnt DESC
+```
+
+### 7.2 查询eM+各潜力等级用户数（单表 algo）
+```sql
+-- eM+ 相关字段全在 algo 表，直接单表统计，无需关联 base
+SELECT
+    em_potential_segment,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+GROUP BY em_potential_segment
+ORDER BY user_cnt DESC
+```
+
+### 7.3 查询各交易场景用户数及笔均金额（单表 pay）
+```sql
+-- 交易维度全在 pay 表，直接单表统计
+SELECT
+    primary_trx_scene_r30d,
+    COUNT(DISTINCT user_id) AS user_cnt,
+    AVG(avg_trx_amt_r30d) AS avg_trx_amt
+FROM antsg_asap.adm_asap_pay_user_label_dd
+WHERE dt = '${bizdate}'
+GROUP BY primary_trx_scene_r30d
+ORDER BY user_cnt DESC
+```
+
+### 7.4 查询沉默用户的回流潜力分布（需 JOIN）
+```sql
+-- 沉默条件在 other_action，回流潜力字段在 algo，跨表才需要 JOIN
+SELECT
+    b.reactivation_level,
+    COUNT(DISTINCT a.user_id) AS user_cnt,
+    AVG(a.last_active_days) AS avg_silent_days
+FROM (
+    -- other_action：过滤日期 + 沉默用户
+    SELECT user_id, last_active_days
+    FROM antsg_asap.adm_asap_other_action_user_label_dd
+    WHERE dt = '${bizdate}'
+      AND last_active_days > 30
+) a
+JOIN (
+    -- algo：过滤日期
+    SELECT user_id, reactivation_level
+    FROM anthk_sg.adm_asap_algo_user_label_dd
+    WHERE dt = '${bizdate}'
+) b ON a.user_id = b.user_id
+GROUP BY b.reactivation_level
+ORDER BY user_cnt DESC
+```
+
+### 7.5 查询eM+高潜用户的年龄性别分布（需 JOIN）
+```sql
+-- eM+高潜 在 algo，年龄/性别 在 base，跨表才 JOIN
+SELECT
+    a.user_age_group,
+    a.user_gender,
+    COUNT(DISTINCT a.user_id) AS em_potential_cnt
+FROM (
+    -- base：过滤日期
+    SELECT user_id, user_age_group, user_gender
+    FROM antsg_asap.adm_asap_base_user_label_dd
+    WHERE dt = '${bizdate}'
+) a
+JOIN (
+    -- algo：过滤日期 + eM+高潜
+    SELECT user_id
+    FROM anthk_sg.adm_asap_algo_user_label_dd
+    WHERE dt = '${bizdate}'
+      AND em_potential_segment = '高潜'
+) b ON a.user_id = b.user_id
+GROUP BY a.user_age_group, a.user_gender
+```
+
+---
+
+## 八、查询注意事项
+1. **分区字段必填**：所有表均为 `dt` 分区，格式 `yyyyMMdd`，查询时必须指定
+2. **优先单表**：查询维度在哪张表就直接用那张表，无需强制关联其他表
+3. **多表 JOIN 必须先过滤**：确认跨表字段需要 JOIN 时，各子查询内先 `WHERE dt + 业务条件` 再 JOIN，避免全表扫描
+4. **用户去重**：用户数统计使用 `COUNT(DISTINCT user_id)`
+5. **黑名单过滤**：营销场景需加 `AND is_promo_black_flag = '0' AND is_black_list = '0'`（字段在 base 表）
+6. **偏好等级通用**：所有 `*_prefer_level` 字段值域均为 `'high'`, `'medium'`, `'low'`
+7. **时间窗口选择**：交易/活跃类指标有 r7d（近7天）和 r30d（近30天）两种，根据需求选择
+8. **潜客rank字段**：所有 `*_rank` 字段数值越小排名越高（rank=1 为最高优先级）
+
+================================================================================
+<!-- FILE_SEPARATOR: 画像域_02_adm_asap_base_user_label_dd.md -->
+================================================================================
+
+# adm_asap_base_user_label_dd
+## 一、表信息
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | adm_asap_base_user_label_dd |
+| 库名 | antsg_asap |
+| 完整路径 | antsg_asap.adm_asap_base_user_label_dd |
+| 表类型 | ADM 汇总表 |
+| 数据更新频率 | 日更新（T+1） |
+| 分区字段 | dt（格式：yyyyMMdd） |
+| 数据生命周期 | 365天 |
+
+
+## 二、表描述
+用户基础画像表，包含用户的基础属性信息，如用户状态、年龄、性别、港漂标识、注册信息、认证信息、设备信息、LBS位置信息、生命周期、价值分层、风控评分等。是用户画像体系中最基础的维度表
+
+## 三、字段列表
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| user_id | 用户ID | STRING | 用户唯一标识 |
+| user_status | 用户状态 | STRING | 用户状态（'T'：正常，'Q'：快速注册，'C'：注销，'B'：冻结） |
+| user_age | 用户年龄 | BIGINT | 用户年龄（数值类型，没有年龄：-1，正常年龄取值范围 >0 ） |
+| user_gender | 用户性别 | STRING | 用户性别('F':女 、'M'：男） |
+| is_hk_drifter | 是否港漂 | STRING | 是否港漂（'CX'：非永久居民，'AX'：永久居民） |
+| is_ph_maid_flag | 是否菲佣用户 | STRING | 是否菲佣用户('1':是、'0:'否) |
+| user_birth_month | 用户生日对应月份 | STRING | 用户生日对应月份(01-12),未认证是空(null) |
+| user_birth_day | 用户生日对应日期 | STRING | 用户生日对应日期(01-31),未认证是空(null) |
+| user_to_birth_x_day | 距离用户本年生日还有X天 | STRING | 距离用户本年生日还有X天,未认证是空(null),本年生日已过为(-1) |
+| user_birth_date_gmt | 认证过的出生年月日 | STRING | 认证过的出生年月日,未认证是空(null) |
+| register_date | 注册日期 | STRING | 注册日期cn(到天) |
+| register_gmt | 注册时间 | STRING | 注册时间cn(到秒() |
+| register_days | 注册距今天数 | BIGINT | 注册距今天数 默认-1 |
+| register_number | 注冊號碼 | STRING | 注冊號碼（'86'、'852'、'853'、'其他'） |
+| new_user_level | 新用户认证等级 | STRING | 新用户认证等级('verified','unverified','pre-existing') |
+| is_pay_qr | 是否收钱码用户 | STRING | 是否收钱码用户('1':是、'0:'否) |
+| is_taxi_merchant | 是否出租车收钱码用户 | STRING | 是否出租车收钱码用户('1':是、'0:'否) |
+| cert_cn_nation | 认证通过的国籍 | STRING | 认证通过的国籍(中文)('未认证'、'越南'、'日本'、'菲律宾'、'泰国'、'韩国'、'香港'、'印度尼西亚'、'中国内地'、'其他国家/地区') |
+| user_age_group | 用户年龄分级 | STRING | 用户年龄分级（'0':未知、'1':18岁以下、'2':18岁到21岁、'3':22岁到25岁、'4':26岁到30岁、'5':31岁到35岁、'6':36岁到40岁、'7':41岁到50岁、'8':51岁到60岁、'9':60岁以上） |
+| new_old_user_level | 新老用户分级 | STRING | 新老用户分级（'1':未活跃、'2':7日内首活、'3':30日内首活、4:365日内首活、5:365日前首活） |
+| user_type | 用户类型 | STRING | 用户类型 ('1'：公司，'2'：个人) |
+| is_have_name_flag | 是否有名字 | STRING | 是否有名字('1':是、'0:'否) |
+| is_actived_flag | 是否激活 | STRING | 是否激活('1':是、'0:'否) |
+| actived_days | 用户激活到当前天数 | BIGINT | 用户激活到当前天数 |
+| nationality | 用户国籍 | STRING | 用户国籍 |
+| careers | 用户职业 | STRING | 用户职业 |
+| credential_type | 用户认证证件类型 | STRING | 用户认证证件类型 |
+| pf_language | 语言设置 | STRING | 语言设置('en_US'、'zh_HK'、'zh_Hans'、'other_language') |
+| is_promo_black_flag | 是否营销黑名单用户 | STRING | 是否营销黑名单用户('1':是、'0:'否) |
+| balance | 当日钱包余额 | BIGINT | 当日钱包余额 |
+| register_from | 用户注册来源 | STRING | 用户注册来源 |
+| is_bind_mobile_flag | 是否绑定手机 | STRING | 是否绑定手机 ('1':是、'0:'否) |
+| is_app_739_versio | app版本号是否小于7.3.9 | STRING | app版本号是否小于7.3.9('1':是、'0:'否) |
+| u_device_model | 机型 | STRING | 机型_流量日志 |
+| u_device_resolution | 分辨率 | STRING | 分辨率，如: 412*883_流量日志 |
+| u_os | 操作系统 | STRING | 操作系统: ANDROID/IOS_流量日志（ 'ANDROID'、'IOS'） |
+| u_resident_province | 常驻省份 | STRING | 常驻省份_流量日志 |
+| u_resident_city | 常驻城市 | STRING | 常驻城市_流量日志 |
+| is_push_power | 用户push权限是否开启 | STRING | 用户push权限是否开启('1':是、'0:'否) |
+| is_push_gw | 是否接收push | STRING | 是否接收push('1':是、'0:'否) |
+| is_lang_en | 最近一次登录设置的语言是英文 | STRING | 最近一次登录设置的语言是英文('1':是、'0:'否) |
+| is_lang_zh | 最近一次登录设置的语言是中文 | STRING | 最近一次登录设置的语言是中文('1':是、'0:'否) |
+| is_login_ios | 最近一次登录使用IOS | STRING | 最近一次登录使用IOS('1':是、'0:'否) |
+| is_login_android | 最近一次登录使用安卓 | STRING | 最近一次登录使用安卓('1':是、'0:'否) |
+| kyc_level | kyc认证等级 | STRING | kyc认证等级('CDD1'、'CDD2'、'EKYC'、'UNKNOWN_KYC_LEVEL'、'CDD0') |
+| is_kyc_flag | 用户是否KYCS | STRING | 用户是否KYCS('1':是、'0:'否) |
+| is_ekyc | 是否ekycS | STRING | 是否ekycS('1':是、'0:'否) |
+| life_cycle | 用户生命周期 | STRING | 用户生命周期 ('1':新手期用户、'2':成长期用户、'3':成熟期用户、'4':衰退期用户、'5':沉默期用户、'6':流失期用户、'61':流失期用户_非AAU) |
+| user_value | 用户价值 | STRING | 用户价值('1'：高价值用户_AAU、'2'：一般价值用户_AAU、'3'：重点发展用户_AAU、'4'：一般发展用户_AAU、'5'：重点保持用户_AAU、'51'：重点保持用户_非AAU、'6'：一般保持用户_AAU、'61'：一般保持用户_非AAU、'7'：重点挽留用户_AAU、'71'：重点挽留用户_非AAU、'8'：低价值用户_AAU、'81'：低价值用户_非AAU) |
+| user_history_value | 用户历史价值 | STRING | 用户历史价值(高、中、低) |
+| active_region_r7d | 最近7天活跃区域 | STRING | 最近7天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null |
+| active_region_r15d | 最近15天活跃区域 | STRING | 最近15天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null |
+| active_region_r30d | 最近30天活跃区域 | STRING | 最近30天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null |
+| active_region_r365d | 最近365天活跃区域 | STRING | 最近365天活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null |
+| active_region_his | 历史至今的活跃区域 | STRING | 历史至今的活跃区域:(內地,香港,日本,澳門,泰國,菲律賓,臺灣,韓國,英國,馬來西亞,新加坡,越南,印度尼西亞,緬甸,柬埔寨,其它),默认值null |
+| is_lbs_hk | 是否曾经lbs香港 | STRING | 是否曾经lbs香港('1':是、'0:'否) |
+| is_lbs_cn | 是否曾经lbs内地 | STRING | 是否曾经lbs内地('1':是、'0:'否) |
+| is_lbs_ma | 是否曾经lbs澳门 | STRING | 是否曾经lbs澳门('1':是、'0:'否) |
+| is_lbs_jp | 是否曾经lbs日本 | STRING | 是否曾经lbs日本('1':是、'0:'否) |
+| city_num_r1y | 近1年出行城市数 | BIGINT | 近1年出行城市数 |
+| city_num_r2y | 近2年出行城市数 | BIGINT | 近2年出行城市数 |
+| city_num_r3y | 近3年出行城市数 | BIGINT | 近3年出行城市数 |
+| country_num_r1y | 近1年出行国家数 | BIGINT | 近1年出行国家数 |
+| country_num_r2y | 近2年出行国家数 | BIGINT | 近2年出行国家数 |
+| country_num_r3y | 近3年出行国家数 | BIGINT | 近3年出行国家数 |
+| travel_days | 近半年在境外的天数 | BIGINT | 近半年在境外的天数 |
+| travel_days_r1y | 近1年在境外的天数 | BIGINT | 近1年在境外的天数 |
+| travel_days_r2y | 近2年在境外的天数 | BIGINT | 近2年在境外的天数 |
+| travel_days_r3y | 近3年在境外的天数 | BIGINT | 近3年在境外的天数 |
+| isoversea_2year | 近2年是否有境外lbs | STRING | 近2年是否有境外lbs('1':是、'0:'否) |
+| is_black_list | 是否风控的营销黑名单 | STRING | 是否风控的营销黑名单T+2更新('1':是、'0:'否) |
+| pl_apply_predict_score | 钱包银行联合信贷模型 标准用户得分 | BIGINT | 钱包银行联合信贷模型 标准用户得分 默认9999 |
+| pl_apply_predict_score_ph_maid | 钱包银行联合信贷模型 菲佣用户得分 | BIGINT | 钱包银行联合信贷模型 菲佣用户得分 默认9999 |
+| pl_apply_user_rank | 钱包银行联合信贷模型 标准用户和菲佣用户合并 并转化为银行的10分制 | BIGINT | 钱包银行联合信贷模型 标准用户和菲佣用户合并 并转化为银行的10分制 无得分为9999 |
+| pl_apply_user_rank_v3 | 钱包银行联合信贷模型 v3版本用户得分 | BIGINT | 钱包银行联合信贷模型 v3版本用户得分 范围0-9 默认9999 |
+| ploan_riskseg | PloanA卡评级 | BIGINT | PloanA卡评级 范围0-9 默认999 |
+| mcard_riskseg | M卡评级 | BIGINT | M卡评级 范围0-9 默认999 |
+| dt | 分区日期 | STRING | 分区日期，格式yyyyMMdd |
+
+
+## 四、常用查询场景
+### 4.1 查询用户基础属性分布
+```sql
+-- 查询各年龄段用户分布
+SELECT 
+    user_age_group,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM antsg_asap.adm_asap_base_user_label_dd
+WHERE dt = '${bizdate}'
+  AND user_status = 'T'
+GROUP BY user_age_group
+ORDER BY user_cnt DESC;
+```
+
+### 4.2 查询港漂用户画像
+```sql
+-- 查询港漂用户的性别和年龄分布
+SELECT 
+    user_gender,
+    user_age_group,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM antsg_asap.adm_asap_base_user_label_dd
+WHERE dt = '${bizdate}'
+  AND is_hk_drifter = 'CX'
+  AND user_status = 'T'
+GROUP BY user_gender, user_age_group
+ORDER BY user_cnt DESC;
+```
+
+### 4.3 查询高价值用户特征
+```sql
+-- 查询高价值用户的生命周期分布
+SELECT 
+    life_cycle,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM antsg_asap.adm_asap_base_user_label_dd
+WHERE dt = '${bizdate}'
+  AND user_value LIKE '1%'
+  AND is_promo_black_flag = '0'
+  AND is_black_list = '0'
+GROUP BY life_cycle
+ORDER BY user_cnt DESC;
+```
+
+### 4.4 查询KYC认证情况
+```sql
+-- 查询各KYC等级的用户分布
+SELECT 
+    kyc_level,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM antsg_asap.adm_asap_base_user_label_dd
+WHERE dt = '${bizdate}'
+  AND user_status = 'T'
+GROUP BY kyc_level
+ORDER BY user_cnt DESC;
+```
+
+### 4.5 查询用户地理位置分布
+```sql
+-- 查询近30天活跃区域分布
+SELECT 
+    active_region_r30d,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM antsg_asap.adm_asap_base_user_label_dd
+WHERE dt = '${bizdate}'
+  AND active_region_r30d IS NOT NULL
+GROUP BY active_region_r30d
+ORDER BY user_cnt DESC;
+```
+
+## 五、注意事项
+1. **分区字段必填**：所有查询必须指定 `dt` 分区，格式为 `yyyyMMdd`
+2. **用户状态过滤**：统计活跃用户数时，建议添加 `user_status = 'T'` 过滤正常用户
+3. **营销黑名单过滤**：营销场景需排除黑名单用户，添加条件：
+
+```sql
+AND is_promo_black_flag = '0' 
+AND is_black_list = '0'
+```
+
+4. **年龄计算**：`user_age = -1` 表示未获取到年龄，统计平均年龄时需排除
+5. **生命周期字段说明**：
+    - '1': 新手期用户
+    - '2': 成长期用户  
+    - '3': 成熟期用户
+    - '4': 衰退期用户
+    - '5': 沉默期用户
+    - '6': 流失期用户
+    - '61': 流失期用户_非AAU
+6. **用户价值字段说明**：以'1'开头表示高价值用户，'8'开头表示低价值用户
+7. **活跃区域字段**：包含内地、香港、日本、澳门、泰国、菲律宾、台湾、韩国、英国、马来西亚、新加坡、越南、印度尼西亚、缅甸、柬埔寨等
+8. **风控评分字段**：
+    - `pl_apply_predict_score`: 标准用户信贷评分，默认9999
+    - `pl_apply_predict_score_ph_maid`: 菲佣用户信贷评分，默认9999
+    - `pl_apply_user_rank`: 10分制评分，无得分为9999
+    - `ploan_riskseg`: PloanA卡评级，范围0-9，默认999
+    - `mcard_riskseg`: M卡评级，范围0-9，默认999
+
+================================================================================
+<!-- FILE_SEPARATOR: 画像域_03_adm_asap_algo_user_label_dd.md -->
+================================================================================
+
+# adm_asap_algo_user_label_dd
+## 一、表信息
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | adm_asap_algo_user_label_dd |
+| 库名 | anthk_sg |
+| 完整路径 | anthk_sg.adm_asap_algo_user_label_dd |
+| 表类型 | ADM 汇总表 |
+| 数据更新频率 | 日更新（T+1） |
+| 分区字段 | dt（格式：yyyyMMdd） |
+| 数据生命周期 | 365天 |
+
+
+## 二、表描述
+用户行为偏好表，包含用户的各类偏好等级、潜客分层、回流潜力、沉默预警等算法标签。该表通过机器学习模型对用户行为进行分析和预测，为精准营销、用户运营提供数据支持。主要包含权益偏好、展位偏好、业务偏好、品类偏好、eM+潜客、基金潜客、回流沉默预警等多个维度的标签。
+
+## 三、字段列表
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| user_id | 用户ID | STRING | 用户唯一标识 |
+| pts_prefer_level | 积分权益偏好等级 | STRING | 积分权益偏好等级('high':高、'medium':中、'low':低) |
+| ec_prefer_level | 兑换类凭证权益偏好等级 | STRING | 兑换类凭证权益偏好等级('high':高、'medium':中、'low':低) |
+| mev_prefer_level | 商户兑换券权益偏好等级 | STRING | 商户兑换券权益偏好等级('high':高、'medium':中、'low':低) |
+| rp_prefer_level | 红包权益偏好等级 | STRING | 红包权益偏好等级('high':高、'medium':中、'low':低) |
+| if_prefer_level | 鼓励金权益偏好等级 | STRING | 鼓励金权益偏好等级('high':高、'medium':中、'low':低) |
+| faid_prefer_level | 满立减权益偏好等级 | STRING | 满立减权益偏好等级('high':高、'medium':中、'low':低) |
+| banner_prefer_level | 首页腰封Banner偏好等级/腰封点击偏好 | STRING | 首页腰封Banner偏好等级('high':高、'medium':中、'low':低) |
+| pay_success_prefer_level | 支付成功页偏好等级 | STRING | 支付成功页偏好等级('high':高、'medium':中、'low':低) |
+| feeds_prefer_level | 首页feeds偏好等级 | STRING | 首页feeds偏好等级('high':高、'medium':中、'low':低) |
+| voucher_prefer_level | 首页優惠卡片偏好等级 | STRING | 首页優惠卡片偏好等级('high':高、'medium':中、'low':低) |
+| finance_prefer_level | 首頁金融卡片偏好等级 | STRING | 首頁金融卡片偏好等级('high':高、'medium':中、'low':低) |
+| target_prefer_level | 首頁定投卡片偏好等级 | STRING | 首頁定投卡片偏好等级('high':高、'medium':中、'low':低) |
+| ol_prefer_level | 線上偏好等级 | STRING | 線上偏好等级('high':高、'medium':中、'low':低) |
+| ll_prefer_level | 本地線下偏好等级 | STRING | 本地線下偏好等级('high':高、'medium':中、'low':低) |
+| cl_prefer_level | 跨境線下偏好等级 | STRING | 跨境線下偏好等级('high':高、'medium':中、'low':低) |
+| pt_prefer_level | 繳費偏好等级 | STRING | 繳費偏好等级('high':高、'medium':中、'low':低) |
+| tf_prefer_level | 轉賬偏好等级 | STRING | 轉賬偏好等级('high':高、'medium':中、'low':低) |
+| tra_prefer_level | 交通偏好等级 | STRING | 交通偏好等级('high':高、'medium':中、'low':低) |
+| rm_prefer_level | 汇款偏好等级 | STRING | 汇款偏好等级('high':高、'medium':中、'low':低) |
+| sv_prefer_level | 賣券偏好等级 | STRING | 賣券偏好等级('high':高、'medium':中、'low':低) |
+| fin01_prefer_level | 金融_EM+偏好等级 | STRING | 金融_EM+偏好等级('high':高、'medium':中、'low':低) |
+| fin02_prefer_level | 金融_非EM+偏好等级 | STRING | 金融_非EM+偏好等级('high':高、'medium':中、'low':低) |
+| cou_prefer_level | 優惠領券偏好等级 | STRING | 優惠領券偏好等级('high':高、'medium':中、'low':低) |
+| ui_prefer_level | 使用積分偏好等级 | STRING | 使用積分偏好等级('high':高、'medium':中、'low':低) |
+| healthcare_prefer_level | 醫療健康偏好等级 | STRING | 醫療健康偏好等级('high':高、'medium':中、'low':低) |
+| fb_prefer_level | 餐飲偏好等级 | STRING | 餐飲偏好等级('high':高、'medium':中、'low':低) |
+| retail_prefer_level | 零售偏好等级 | STRING | 零售偏好等级('high':高、'medium':中、'low':低) |
+| travel_prefer_level | 旅遊出行偏好等级 | STRING | 旅遊出行偏好等级('high':高、'medium':中、'low':低) |
+| comprehfinance_prefer_level | 綜合金融偏好等级 | STRING | 綜合金融偏好等级('high':高、'medium':中、'low':低) |
+| other_prefer_level | 其他偏好等级 | STRING | 其他偏好等级('high':高、'medium':中、'low':低) |
+| game_prefer_level | 遊戲偏好等级 | STRING | 遊戲偏好等级('high':高、'medium':中、'low':低) |
+| recreation_prefer_level | 休閒娛樂偏好等级 | STRING | 休閒娛樂偏好等级('high':高、'medium':中、'low':低) |
+| bathinghealth_prefer_level | 洗浴養身偏好等级 | STRING | 洗浴養身偏好等级('high':高、'medium':中、'low':低) |
+| housekeeping_prefer_level | 家政/維修/回收偏好等级 | STRING | 家政/維修/回收偏好等级('high':高、'medium':中、'low':低) |
+| filmshowsport_prefer_level | 電影/演出/體育賽事偏好等级 | STRING | 電影/演出/體育賽事偏好等级('high':高、'medium':中、'low':低) |
+| beauty_prefer_level | 麗人偏好等级 | STRING | 麗人偏好等级('high':高、'medium':中、'low':低) |
+| audiovisualmember_prefer_level | 影音會員偏好等级 | STRING | 影音會員偏好等级('high':高、'medium':中、'low':低) |
+| telfee_prefer_level | 電訊繳費偏好等级 | STRING | 電訊繳費偏好等级('high':高、'medium':中、'low':低) |
+| callcar_prefer_level | 打車偏好等级 | STRING | 打車偏好等级('high':高、'medium':中、'low':低) |
+| travelservice_prefer_level | 旅行服務偏好等级 | STRING | 旅行服務偏好等级('high':高、'medium':中、'low':低) |
+| tram_prefer_level | 電車偏好等级 | STRING | 電車偏好等级('high':高、'medium':中、'low':低) |
+| wealthmanage_prefer_level | 財富管理偏好等级 | STRING | 財富管理偏好等级('high':高、'medium':中、'low':低) |
+| otherfee_prefer_level | 其他繳費偏好等级 | STRING | 其他繳費偏好等级('high':高、'medium':中、'low':低) |
+| bus_prefer_level | 巴士偏好等级 | STRING | 巴士偏好等级('high':高、'medium':中、'low':低) |
+| bank_prefer_level | 銀行偏好等级 | STRING | 銀行偏好等级('high':高、'medium':中、'low':低) |
+| service_prefer_level | 服務偏好等级 | STRING | 服務偏好等级('high':高、'medium':中、'low':低) |
+| ferry_prefer_level | 輪渡偏好等级 | STRING | 輪渡偏好等级('high':高、'medium':中、'low':低) |
+| prenatalcare_prefer_level | 產前產後護理偏好等级 | STRING | 產前產後護理偏好等级('high':高、'medium':中、'low':低) |
+| govbill_prefer_level | 政府帳單偏好等级 | STRING | 政府帳單偏好等级('high':高、'medium':中、'low':低) |
+| livingfee_prefer_level | 生活繳費偏好等级 | STRING | 生活繳費偏好等级('high':高、'medium':中、'low':低) |
+| highspeedrail_prefer_level | 高鐵偏好等级 | STRING | 高鐵偏好等级('high':高、'medium':中、'low':低) |
+| sharedservice_prefer_level | 共享服務偏好等级 | STRING | 共享服務偏好等级('high':高、'medium':中、'low':低) |
+| minibus_prefer_level | 小巴偏好等级 | STRING | 小巴偏好等级('high':高、'medium':中、'low':低) |
+| metro_prefer_level | 地鐵偏好等级 | STRING | 地鐵偏好等级('high':高、'medium':中、'low':低) |
+| cloth_prefer_level | 服裝偏好等级 | STRING | 服裝偏好等级('high':高、'medium':中、'low':低) |
+| exercise_prefer_level | 運動健身偏好等级 | STRING | 運動健身偏好等级('high':高、'medium':中、'low':低) |
+| airport_prefer_level | 機場偏好等级 | STRING | 機場偏好等级('high':高、'medium':中、'low':低) |
+| platformincentives_prefer_level | 平臺激勵偏好等级 | STRING | 平臺激勵偏好等级('high':高、'medium':中、'low':低) |
+| userrights_prefer_level | 用戶權益偏好等级 | STRING | 用戶權益偏好等级('high':高、'medium':中、'low':低) |
+| accounttransaction_prefer_level | 賬戶與交易管理偏好等级 | STRING | 賬戶與交易管理偏好等级('high':高、'medium':中、'low':低) |
+| ai_brand_prefer_top_items | 用户品牌top偏好 | STRING | 用户品牌top偏好 |
+| reactivation_level | 用户回流潜力等级 | STRING | 用户回流潜力等级('high':高、'medium':中、'low':低) |
+| silence_risk_level | 用户沉默预警等级 | STRING | 用户沉默预警等级('high':高、'medium':中、'low':低) |
+| freq_uplift_level | 用户提频潜力等级 | STRING | 用户提频潜力等级('high':高、'medium':中、'low':低) |
+| prefer_level | push偏好等级/点击push偏好等级 | STRING | push偏好等级('high':高、'medium':中、'low':低) |
+| r23h_prefer_level | R23h偏好等级 | STRING | R23h偏好等级('high':高、'medium':中、'low':低) |
+| r22h_prefer_level | R22h偏好等级 | STRING | R22h偏好等级('high':高、'medium':中、'low':低) |
+| r21h_prefer_level | R21h偏好等级 | STRING | R21h偏好等级('high':高、'medium':中、'low':低) |
+| r20h_prefer_level | R20h偏好等级 | STRING | R20h偏好等级('high':高、'medium':中、'low':低) |
+| r19h_prefer_level | R19h偏好等级 | STRING | R19h偏好等级('high':高、'medium':中、'low':低) |
+| r18h_prefer_level | R18h偏好等级 | STRING | R18h偏好等级('high':高、'medium':中、'low':低) |
+| r17h_prefer_level | R17h偏好等级 | STRING | R17h偏好等级('high':高、'medium':中、'low':低) |
+| r16h_prefer_level | R16h偏好等级 | STRING | R16h偏好等级('high':高、'medium':中、'low':低) |
+| r15h_prefer_level | R15h偏好等级 | STRING | R15h偏好等级('high':高、'medium':中、'low':低) |
+| r14h_prefer_level | R14h偏好等级 | STRING | R14h偏好等级('high':高、'medium':中、'low':低) |
+| r13h_prefer_level | R13h偏好等级 | STRING | R13h偏好等级('high':高、'medium':中、'low':低) |
+| r12h_prefer_level | R12h偏好等级 | STRING | R12h偏好等级('high':高、'medium':中、'low':低) |
+| r11h_prefer_level | R11h偏好等级 | STRING | R11h偏好等级('high':高、'medium':中、'low':低) |
+| r10h_prefer_level | R10h偏好等级 | STRING | R10h偏好等级('high':高、'medium':中、'low':低) |
+| r09h_prefer_level | R09h偏好等级 | STRING | R09h偏好等级('high':高、'medium':中、'low':低) |
+| r08h_prefer_level | R08h偏好等级 | STRING | R08h偏好等级('high':高、'medium':中、'low':低) |
+| r07h_prefer_level | R07h偏好等级 | STRING | R07h偏好等级('high':高、'medium':中、'low':低) |
+| r06h_prefer_level | R06h偏好等级 | STRING | R06h偏好等级('high':高、'medium':中、'low':低) |
+| r05h_prefer_level | R05h偏好等级 | STRING | R05h偏好等级('high':高、'medium':中、'low':低) |
+| r04h_prefer_level | R04h偏好等级 | STRING | R04h偏好等级('high':高、'medium':中、'low':低) |
+| r03h_prefer_level | R03h偏好等级 | STRING | R03h偏好等级('high':高、'medium':中、'low':低) |
+| r02h_prefer_level | R02h偏好等级 | STRING | R02h偏好等级('high':高、'medium':中、'low':低) |
+| r01h_prefer_level | R01h偏好等级 | STRING | R01h偏好等级('high':高、'medium':中、'low':低) |
+| r00h_prefer_level | R00h偏好等级 | STRING | R00h偏好等级('high':高、'medium':中、'low':低) |
+| em_potential_segment | eM+开通预测 | STRING | eM+开通预测(高潜、中潜、低潜) |
+| em_transfer_in_label | eM+入金/存钱预测 | STRING | eM+入金预测(高入金、中入金、低入金) |
+| em_value_user | eM+用户价值 | STRING | eM+用户价值('1':高价值、'2':中价值、'3':低价值) |
+| em_marketing_sensitivity | eM+营销敏感度 | STRING | eM+营销敏感度（高营销敏感度,低营销敏感度） |
+| em_potential_rank | eM+潜客rank | BIGINT | eM+潜客rank，数值越小，排名越高 |
+| em_transfer_rank | eM+入金rank | BIGINT | eM+入金rank，数值越小，排名越高 |
+| em_mkt_perfer_rank | eM+营销敏感度rank | BIGINT | eM+营销敏感度rank，数值越小，排名越高 |
+| fund_potential_rank | 基金潜客rank | BIGINT | 基金潜客rank，数值越小，排名越高 |
+| fund_potential_segment | 基金开通预测 | STRING | 基金开通预测（高潜、中潜、低潜） |
+| em_potential_banner_score | eM+潜客分(首页Banner偏好) | BIGINT | eM+潜客分(首页Banner偏好),数值越大, eM+开通概率越高 |
+| em_potential_banner_rank | eM+潜客rank(首页Banner偏好) | BIGINT | eM+潜客rank(首页Banner偏好),数值越小,排名越高 |
+| fund_subs_rank | subscription rank | BIGINT | subscription rank，数值越小，认购率越高 |
+| dt | 分区日期 | STRING | 分区日期，格式yyyyMMdd |
+
+
+## 四、常用查询场景
+### 4.1 查询高偏好用户分布
+```sql
+-- 查询各权益偏好的高偏好用户数
+SELECT 
+    pts_prefer_level,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+  AND pts_prefer_level = 'high'
+GROUP BY pts_prefer_level;
+```
+
+### 4.2 查询eM+潜客分层
+```sql
+-- 查询eM+各潜力等级用户数
+SELECT 
+    em_potential_segment,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+GROUP BY em_potential_segment
+ORDER BY user_cnt DESC;
+```
+
+### 4.3 查询基金潜客
+```sql
+-- 查询基金高潜用户
+SELECT 
+    fund_potential_segment,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+GROUP BY fund_potential_segment
+ORDER BY user_cnt DESC;
+```
+
+### 4.4 查询用户回流潜力
+```sql
+-- 查询各回流潜力等级用户数
+SELECT 
+    reactivation_level,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+GROUP BY reactivation_level
+ORDER BY user_cnt DESC;
+```
+
+### 4.5 查询沉默风险用户
+```sql
+-- 查询沉默风险等级分布
+SELECT 
+    silence_risk_level,
+    COUNT(DISTINCT user_id) AS user_cnt
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+GROUP BY silence_risk_level
+ORDER BY user_cnt DESC;
+```
+
+### 4.6 查询eM+高潜用户Top N
+```sql
+-- 查询eM+潜客排名最高的1000名用户
+SELECT 
+    user_id,
+    em_potential_rank,
+    em_potential_segment
+FROM anthk_sg.adm_asap_algo_user_label_dd
+WHERE dt = '${bizdate}'
+  AND em_potential_segment = '高潜'
+ORDER BY em_potential_rank ASC
+LIMIT 1000;
+```
+
+## 五、注意事项
+1. **分区字段必填**：所有查询必须指定 `dt` 分区，格式为 `yyyyMMdd`
+2. **偏好等级字段通用说明**：所有 `*_prefer_level` 字段值域均为 `'high'`(高)、`'medium'`(中)、`'low'`(低)
+3. **潜客分层字段说明**：
+    - `em_potential_segment`: eM+开通预测（高潜、中潜、低潜）
+    - `fund_potential_segment`: 基金开通预测（高潜、中潜、低潜）
+    - `em_transfer_in_label`: eM+入金预测（高入金、中入金、低入金）
+4. **Rank字段说明**：所有 `*_rank` 字段数值越小排名越高（rank=1 为最高优先级）
+5. **eM+用户价值**：'1'表示高价值、'2'表示中价值、'3'表示低价值
+6. **营销敏感度**：分为'高营销敏感度'和'低营销敏感度'
+7. **时段偏好字段**：r00h-r23h 表示24小时制的各时段偏好等级
+8. **关联使用**：该表需与 `adm_asap_base_user_label_dd` 通过 `user_id` + `dt` 进行关联使用
+
+================================================================================
+<!-- FILE_SEPARATOR: 画像域_04_adm_asap_pay_user_label_dd.md -->
+================================================================================
+
+# adm_asap_pay_user_label_dd（用户交易行为画像表）
+
+## 一、表信息
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | adm_asap_pay_user_label_dd |
+| 库名 | antsg_asap |
+| 完整路径 | antsg_asap.adm_asap_pay_user_label_dd |
+| 表类型 | ADM 汇总表 |
+| 数据更新频率 | 日更新（T+1） |
+| 分区字段 | dt（格式：yyyyMMdd） |
+| 数据生命周期 | 365天 |
+
+
+## 二、表描述
+用户交易行为画像表，包含用户绑卡、支付、充值、转账、理财等交易行为标签。该表记录用户的交易习惯、支付方式偏好、出行服务使用、金融理财行为等多维度交易特征，为用户运营、精准营销、风险控制提供数据支持。
+
+## 三、字段列表
+
+> 注：由于该表字段较多（300+字段），以下列出核心字段分类，完整字段列表请参考语雀原文档。
+
+### 3.1 绑卡相关字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| is_bank_no | 是否绑定非直连银行 | STRING | 是否绑定非直连银行 ('1':是、'0:'否) |
+| is_card_info | 是否绑卡 | STRING | 是否绑卡 ('1':是、'0:'否) |
+| effective_bind_card_cnt | 当前有效绑卡数 | BIGINT | 当前有效绑卡数 |
+| bind_card_cnt | 历史绑卡数 | BIGINT | 历史绑卡数 |
+| is_bind_boci | 当前是否绑定中银信用卡 | STRING | 当前是否绑定中银信用卡('1':是、'0:'否) |
+| is_bind_credit | 当前是否绑定VM或中银信用卡 | STRING | 当前是否绑定VM或中银信用卡('1':是、'0:'否) |
+| is_bank_bind | 当前是否绑定银行卡 | STRING | 当前是否绑定银行卡('1':是、'0:'否) |
+| is_bind_fps | 当前是否绑定FPS | STRING | 当前是否绑定FPS('1':是、'0:'否) |
+
+### 3.2 交易行为字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| transact_amt_r1d | 最近1天内交易金额 | BIGINT | 最近1天内交易金额，默认0 |
+| transact_amt_r7d | 最近7天内交易金额 | BIGINT | 最近7天内交易金额，默认0 |
+| transact_amt_r30d | 最近30天内交易金额 | BIGINT | 最近30天内交易金额，默认0 |
+| transact_num_r1d | 最近1天内交易次数 | BIGINT | 最近1天内交易次数，默认0 |
+| transact_num_r7d | 最近7天内交易次数 | BIGINT | 最近7天内交易次数，默认0 |
+| transact_num_r30d | 最近30天内交易次数 | BIGINT | 最近30天内交易次数，默认0 |
+| pay_level_r30d | 用户近30天支付活跃分级 | STRING | G1-R30D高频次,高金额、G2-R30D高频次,中低金额...G9-R30D无支付活跃 |
+
+### 3.3 交易场景字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| local_offline_scene_cnt_r30d | 最近30天交易笔数-本地線下 | BIGINT | 最近30天交易笔数-本地線下，默认0 |
+| online_scene_cnt_r30d | 最近30天交易笔数-線上 | BIGINT | 最近30天交易笔数-線上，默认0 |
+| transfer_scene_cnt_r30d | 最近30天交易笔数-轉賬 | BIGINT | 最近30天交易笔数-轉賬，默认0 |
+| fee_payment_scene_cnt_r30d | 最近30天交易笔数-繳費 | BIGINT | 最近30天交易笔数-繳費，默认0 |
+| crossborder_scene_cnt_r30d | 最近30天交易笔数-跨境線下 | BIGINT | 最近30天交易笔数-跨境線下，默认0 |
+| transport_scene_cnt_r30d | 最近30天交易笔数-交通 | BIGINT | 最近30天交易笔数-交通，默认0 |
+| finance_scene_cnt_r30d | 最近30天交易笔数-金融 | BIGINT | 最近30天交易笔数-金融，默认0 |
+
+### 3.4 充值相关字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| topup_cnt_r1d | 1日充值笔数 | BIGINT | 1日充值笔数 |
+| topup_cnt_r7d | 7日内充值笔数 | BIGINT | 7日内充值笔数 |
+| topup_cnt_r30d | 30日内充值笔数 | BIGINT | 30日内充值笔数 |
+| topup_amt_r1d | 1日充值金额 | BIGINT | 1日充值金额 |
+| topup_amt_r7d | 7日内充值金额 | BIGINT | 7日内充值金额 |
+| topup_amt_r30d | 30日内充值金额 | BIGINT | 30日内充值金额 |
+
+### 3.5 出行服务字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| is_local_buscode | 是否開通本地乘車碼 | STRING | 是否開通本地乘車碼 ('1':是、'0:'否) |
+| is_cross_buscode | 是否開通跨境乘車碼 | STRING | 是否開通跨境乘車碼 ('1':是、'0:'否) |
+| is_auth_taxi | 是否授權打車 | STRING | 是否授權打車 ('1':是、'0:'否) |
+| taxi_gaode_cnt_r30d | 最近30天使用高德打车次数 | BIGINT | 最近30天使用高德打车次数 |
+| taxi_didi_cnt_r30d | 最近30天使用滴滴打车次数 | BIGINT | 最近30天使用滴滴打车次数 |
+| high_rail_r30d | 最近30天乘坐高铁次数 | STRING | 最近30天乘坐高铁次数 |
+
+### 3.6 eM+与理财字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| is_register_emplus | 是否开通eM+ | STRING | 是否开通eM+('1':是、'0:'否) |
+| emplus_balance_amt_range | eM+余额区间 | BIGINT | eM+余额区间(元) |
+| em_deposit_cnts_r30d | 用户最近30天入金次数 | BIGINT | 用户最近30天入金次数 |
+| em_deposit_amounts_r30d | 用户最近30天入金金额 | STRING | 用户最近30天入金金额 |
+| fund_holdings_amt | 个人持仓总值 | BIGINT | 个人持仓总值 |
+| cur_fund_holdings_cnt | 当前持仓数量 | BIGINT | 当前持仓数量 |
+
+### 3.7 缴费场景字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| government_payment_r30 | 最近30天的政府缴费场景 | STRING | 水務署，薪俸稅，物業稅，學生還款，差餉，其他 |
+| living_payment_r30 | 最近30天的生活缴费场景 | STRING | 電費_CLP，電費_港燈，煤氣費，管理費，大學繳費，其他 |
+| telecom_payment_r30 | 最近30天的電讯缴费场景 | STRING | 香港寛頻，中置移動香港，3HK，數碼通，香港電訊HKT，電訊數碼，其他 |
+
+
+## 四、常用查询场景
+### 4.1 查询用户绑卡情况
+```sql
+SELECT 
+    user_id,
+    is_card_info,
+    effective_bind_card_cnt,
+    bind_card_cnt,
+    is_bind_credit,
+    is_bank_bind
+FROM antsg_asap.adm_asap_pay_user_label_dd
+WHERE dt = '${bizdate}'
+  AND is_card_info = '1'
+```
+
+### 4.2 查询用户交易活跃度
+```sql
+SELECT 
+    user_id,
+    transact_num_r7d,
+    transact_num_r30d,
+    transact_amt_r7d,
+    transact_amt_r30d,
+    pay_level_r30d
+FROM antsg_asap.adm_asap_pay_user_label_dd
+WHERE dt = '${bizdate}'
+  AND transact_num_r30d > 0
+```
+
+### 4.3 查询用户充值情况
+```sql
+SELECT 
+    user_id,
+    topup_cnt_r7d,
+    topup_cnt_r30d,
+    topup_amt_r7d,
+    topup_amt_r30d
+FROM antsg_asap.adm_asap_pay_user_label_dd
+WHERE dt = '${bizdate}'
+  AND topup_cnt_r30d > 0
+```
+
+### 4.4 查询用户理财情况
+```sql
+SELECT 
+    user_id,
+    is_register_emplus,
+    emplus_balance_amt_range,
+    fund_holdings_amt,
+    cur_fund_holdings_cnt
+FROM antsg_asap.adm_asap_pay_user_label_dd
+WHERE dt = '${bizdate}'
+  AND is_register_emplus = '1'
+```
+
+
+## 五、注意事项
+1. **分区字段必填**：所有查询必须指定 `dt` 分区，格式为 `yyyyMMdd`
+2. **布尔标志字段**：以 `is_` 开头的字段，'1' 表示是，'0' 表示否
+3. **默认值说明**：
+    - 交易笔数/金额类字段默认值为 0
+    - 天数类字段无记录时默认值为 -1 或 9999
+    - 字符串类字段默认值为 null
+4. **时间窗口字段**：
+    - r1d/r7d/r15d/r30d/r60d/r90d/r365d 表示不同时间窗口的统计
+    - his 表示历史至今的累计统计
+5. **支付活跃分级**：pay_level_r30d 字段将用户分为 G1-G9 九个等级，从高频高金额到无支付活跃
+6. **数据更新**：该表按日更新，dt 分区为数据日期，通常 T+1 更新
+7. **关联使用**：该表需与 `adm_asap_base_user_label_dd` 通过 `user_id` + `dt` 进行关联使用
+
+================================================================================
+<!-- FILE_SEPARATOR: 画像域_05_adm_asap_other_action_user_label_dd.md -->
+================================================================================
+
+# adm_asap_other_action_user_label_dd（用户非交易行为画像表）
+
+## 一、表信息
+| 项目 | 内容 |
+| --- | --- |
+| 表名 | adm_asap_other_action_user_label_dd |
+| 库名 | antsg_asap |
+| 完整路径 | antsg_asap.adm_asap_other_action_user_label_dd |
+| 表类型 | ADM 汇总表 |
+| 数据更新频率 | 日更新（T+1） |
+| 分区字段 | dt（格式：yyyyMMdd） |
+| 数据生命周期 | 365天 |
+
+
+## 二、表描述
+用户非交易行为画像表，包含用户登录、活跃、领券、核销、关注商户等非交易行为标签。该表记录用户的非交易行为特征，包括APP访问、权益领取、商户关注、积分使用等行为，为用户运营、精准营销提供数据支持。
+
+## 三、字段列表
+
+> 注：由于该表字段较多（200+字段），以下列出核心字段分类，完整字段列表请参考语雀原文档。
+
+### 3.1 登录活跃字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| user_active_r3d | 最近3天活跃天数 | STRING | 最近3天活跃天数，默认0 |
+| user_active_r7d | 最近7天活跃天数 | STRING | 最近7天活跃天数，默认0 |
+| user_active_r30d | 最近30天活跃天数 | STRING | 最近30天活跃天数，默认0 |
+| login_cnt_r1d | 近1日登录次数 | BIGINT | 近1日登录次数，无登陆是0 |
+| login_cnt_r7d | 7日内登录次数 | BIGINT | 7日内登录次数，无登陆是0 |
+| login_cnt_r30d | 30日内登录次数 | BIGINT | 30日内登录次数，无登陆是0 |
+| user_activity_level | 用户活跃等级 | STRING | 用户活跃等级(低频,中频,高频,沉默,流失,其它) |
+| user_login_frequency | 用户登录频次 | STRING | 用户登录频次(上升,保持,下降) |
+| is_7d_active | 近7天是否活跃 | STRING | 近7天是否活跃('1':是, '0':否) |
+| is_30d_active | 近30天是否活跃 | STRING | 近30天是否活跃('1':是, '0':否) |
+
+### 3.2 领券核销字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| send_cnt_r1d | 用户最近1天领券数量 | BIGINT | 用户最近1天领券数量 |
+| send_cnt_r7d | 用户最近7天领券数量 | BIGINT | 用户最近7天领券数量 |
+| send_cnt_r30d | 用户最近30天领券数量 | BIGINT | 用户最近30天领券数量 |
+| use_cnt_r1d | 用户最近1天核销券数量 | BIGINT | 用户最近1天核销券数量 |
+| use_cnt_r7d | 用户最近7天核销券数量 | BIGINT | 用户最近7天核销券数量 |
+| use_cnt_r30d | 用户最近30天核销券数量 | BIGINT | 用户最近30天核销券数量 |
+
+### 3.3 权益领取字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| equity_send_cnt_pts_r7d | 用户过去7天在积分权益的领取次数 | BIGINT | 用户过去7天在积分权益的领取次数 |
+| equity_use_cnt_pts_r7d | 用户过去7天在积分权益的核销次数 | BIGINT | 用户过去7天在积分权益的核销次数 |
+| equity_send_cnt_rp_r7d | 用户过去7天在红包权益的领取次数 | BIGINT | 用户过去7天在红包权益的领取次数 |
+| equity_use_cnt_rp_r7d | 用户过去7天在红包权益的核销次数 | BIGINT | 用户过去7天在红包权益的核销次数 |
+| equity_send_cnt_pts_r30d | 用户过去30天在积分权益的领取次数 | BIGINT | 用户过去30天在积分权益的领取次数 |
+| equity_use_cnt_pts_r30d | 用户过去30天在积分权益的核销次数 | BIGINT | 用户过去30天在积分权益的核销次数 |
+
+### 3.4 积分相关字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| is_point_new_user | 是否积分新用户 | STRING | 是否积分新用户(30天首次使用积分) ('1':是、'0:'否) |
+| is_point_growing_user | 是否积分成长用户 | STRING | 是否积分成长用户('1':是、'0:'否) |
+| is_point_active_user | 是否成熟积分用户 | STRING | 是否成熟积分用户('1':是、'0:'否) |
+| is_point_lost_user | 是否积分流失用户 | STRING | 是否积分流失用户('1':是、'0:'否) |
+| available_point_total | 总积分可用数量 | STRING | 总积分可用数量 |
+
+### 3.5 Push互动字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| user_push_exposure_pv_r30d | 用户近30天push触达次数 | BIGINT | 用户近30天push触达次数(数值类型) |
+| user_push_exposure_pv_r7d | 用户近7天push触达次数 | BIGINT | 用户近7天push触达次数(数值类型) |
+| user_push_cilck_pv_r30d | 用户近30天push点击次数 | BIGINT | 用户近30天push点击次数(数值类型) |
+| user_push_cilck_pv_r7d | 用户近7天push点击次数 | BIGINT | 用户近7天push点击次数(数值类型) |
+| user_push_activity_level | 用户push活跃等级 | STRING | 用户push活跃等级(高频、中频、低频) |
+
+### 3.6 页面点击字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| paper_clk_r7d | 最近7天腰封点击次数 | STRING | 最近7天腰封点击次数 |
+| paper_clk_r30d | 最近30天腰封点击次数 | STRING | 最近30天腰封点击次数 |
+| feeds_clk_r7d | 最近7天feeds点击次数 | STRING | 最近7天feeds点击次数 |
+| feeds_clk_r30d | 最近30天feeds点击次数 | STRING | 最近30天feeds点击次数 |
+| push_clk_r7d | 最近7天push点击次数 | STRING | 最近7天push点击次数 |
+| push_clk_r30d | 最近30天push点击次数 | STRING | 最近30天push点击次数 |
+
+### 3.7 商户关注字段
+| 字段名 | 字段中文名 | 字段类型 | 字段描述 |
+| --- | --- | --- | --- |
+| is_follow_food_effective_flag | 当前是否关注餐饮商户 | STRING | 当前是否关注餐饮商户 ('1':是、'0:'否) |
+| is_follow_ent_effective_flag | 当前是否关注休闲娱乐商户 | STRING | 当前是否关注休闲娱乐商户 ('1':是、'0:'否) |
+| is_follow_trans_effective_flag | 当前是否关注交通出行商户 | STRING | 当前是否关注交通出行商户 ('1':是、'0:'否) |
+| follow_cnt_r7d | 过去7日关注商户数 | BIGINT | 过去7日关注商户数 |
+| follow_cnt_r30d | 过去30日关注商户数 | BIGINT | 过去30日关注商户数 |
+
+
+## 四、常用查询场景
+### 4.1 查询用户活跃情况
+```sql
+SELECT 
+    user_id,
+    user_active_r7d,
+    user_active_r30d,
+    login_cnt_r7d,
+    login_cnt_r30d,
+    user_activity_level
+FROM antsg_asap.adm_asap_other_action_user_label_dd
+WHERE dt = '${bizdate}'
+  AND user_active_r30d > 0
+```
+
+### 4.2 查询用户领券核销情况
+```sql
+SELECT 
+    user_id,
+    send_cnt_r7d,
+    send_cnt_r30d,
+    use_cnt_r7d,
+    use_cnt_r30d
+FROM antsg_asap.adm_asap_other_action_user_label_dd
+WHERE dt = '${bizdate}'
+  AND send_cnt_r30d > 0
+```
+
+### 4.3 查询用户关注商户情况
+```sql
+SELECT 
+    user_id,
+    is_follow_food_effective_flag,
+    is_follow_ent_effective_flag,
+    follow_cnt_r30d
+FROM antsg_asap.adm_asap_other_action_user_label_dd
+WHERE dt = '${bizdate}'
+  AND follow_cnt_r30d > 0
+```
+
+### 4.4 查询积分用户分层
+```sql
+SELECT 
+    user_id,
+    is_point_new_user,
+    is_point_active_user,
+    is_point_lost_user,
+    available_point_total
+FROM antsg_asap.adm_asap_other_action_user_label_dd
+WHERE dt = '${bizdate}'
+  AND (is_point_new_user = '1' OR is_point_active_user = '1')
+```
+
+### 4.5 查询push触达情况
+```sql
+SELECT 
+    user_id,
+    user_push_exposure_pv_r7d,
+    user_push_cilck_pv_r7d,
+    user_push_activity_level
+FROM antsg_asap.adm_asap_other_action_user_label_dd
+WHERE dt = '${bizdate}'
+  AND user_push_exposure_pv_r7d > 0
+```
+
+
+## 五、注意事项
+1. **分区字段必填**：所有查询必须指定 `dt` 分区，格式为 `yyyyMMdd`
+2. **布尔标志字段**：以 `is_` 开头的字段，'1' 表示是，'0' 表示否
+3. **默认值说明**：
+    - 活跃天数/次数类字段默认值为 0
+    - 时间类字段无记录时默认值为 '9999-12-31 23:59:59'
+    - 字符串类字段默认值为 null
+4. **时间窗口字段**：
+    - r1d/r7d/r15d/r30d/r60d/r90d/r365d 表示不同时间窗口的统计
+    - his 表示历史至今的累计统计
+5. **用户活跃等级**：user_activity_level 字段标识用户活跃程度（高频、中频、低频）
+6. **积分用户分层**：包含新用户、成长用户、成熟用户、流失用户、沉默用户、潜在用户等分层
+7. **数据更新**：该表按日更新，dt 分区为数据日期，通常 T+1 更新
+8. **关联使用**：该表需与 `adm_asap_base_user_label_dd` 通过 `user_id` + `dt` 进行关联使用

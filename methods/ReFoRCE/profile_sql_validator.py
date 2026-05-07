@@ -2,7 +2,7 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +44,10 @@ SQL_KEYWORDS = {
     "OR",
     "ORDER",
     "OUTER",
+    "OVER",
+    "PARTITION",
     "RIGHT",
+    "ROWS",
     "SELECT",
     "THEN",
     "UNION",
@@ -59,6 +62,7 @@ SQL_FUNCTIONS = {
     "COALESCE",
     "COUNT",
     "CURRENT_DATE",
+    "DATE_FORMAT",
     "DATEADD",
     "DATE_SUB",
     "MAX",
@@ -72,7 +76,8 @@ SQL_FUNCTIONS = {
 
 
 def strip_strings(sql: str) -> str:
-    return re.sub(r"'(?:''|[^'])*'", "''", sql)
+    sql = re.sub(r"'(?:''|[^'])*'", "''", sql)
+    return re.sub(r'"(?:""|[^"])*"', '""', sql)
 
 
 def strip_comments(sql: str) -> str:
@@ -88,6 +93,10 @@ def issue(severity: str, code: str, message: str, evidence: str = "") -> dict[st
     return {"severity": severity, "code": code, "message": message, "evidence": evidence}
 
 
+def domain_label(registry: dict[str, Any]) -> str:
+    return registry.get("domain", "当前域")
+
+
 def table_maps(registry: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], dict[str, str], dict[str, set[str]]]:
     by_full_name = {table["full_name"].lower(): table for table in registry["tables"]}
     short_to_full = {table["table_name"].lower(): table["full_name"].lower() for table in registry["tables"]}
@@ -98,20 +107,54 @@ def table_maps(registry: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], dic
     return by_full_name, short_to_full, fields_by_full
 
 
+def parse_cte_names(sql: str) -> set[str]:
+    sql_clean = strip_comments(strip_strings(sql))
+    if not re.match(r"(?is)^\s*with\b", sql_clean):
+        return set()
+    return {
+        match.group(1).lower()
+        for match in re.finditer(r"(?is)(?:\bwith\b|,)\s*([a-zA-Z_][\w]*)\s+as\s*\(", sql_clean)
+    }
+
+
+def parse_derived_aliases(sql: str) -> set[str]:
+    sql_clean = strip_comments(strip_strings(sql))
+    aliases = {
+        match.group(1).lower()
+        for match in re.finditer(r"(?is)\)\s*(?:as\s+)?([a-zA-Z_][\w]*)\b", sql_clean)
+        if match.group(1).upper() not in SQL_KEYWORDS
+    }
+    aliases.update(
+        match.group(3).lower()
+        for match in re.finditer(r"(?is)\b(from|join)\s+([a-zA-Z_][\w]*)\s+(?:as\s+)?([a-zA-Z_][\w]*)", sql_clean)
+        if match.group(2).upper() not in SQL_KEYWORDS
+        and match.group(3).upper() not in SQL_KEYWORDS
+    )
+    return aliases
+
+
+def parse_non_physical_table_names(sql: str) -> set[str]:
+    return parse_cte_names(sql) | parse_derived_aliases(sql)
+
+
 def parse_table_refs(sql: str, registry: dict[str, Any]) -> list[dict[str, str]]:
     by_full_name, short_to_full, _ = table_maps(registry)
     known_full = set(by_full_name)
+    cte_names = parse_cte_names(sql)
     refs = []
+    sql_no_comments = strip_comments(sql)
     pattern = re.compile(
         r"(?is)\b(from|join)\s+([a-zA-Z_][\w]*\.[a-zA-Z_][\w]*|[a-zA-Z_][\w]*)\s*(?:as\s+)?([a-zA-Z_][\w]*)?"
     )
-    for match in pattern.finditer(sql):
+    for match in pattern.finditer(sql_no_comments):
         raw_table = match.group(2)
         raw_alias = match.group(3)
         if raw_alias and raw_alias.upper() in SQL_KEYWORDS:
             raw_alias = None
         alias = raw_alias or raw_table.split(".")[-1]
         normalized = raw_table.lower()
+        if normalized in cte_names:
+            continue
         if normalized in known_full:
             full_name = normalized
         elif normalized in short_to_full:
@@ -123,7 +166,7 @@ def parse_table_refs(sql: str, registry: dict[str, Any]) -> list[dict[str, str]]
 
 
 def parse_qualified_columns(sql: str) -> list[tuple[str, str]]:
-    sql_no_strings = strip_strings(sql)
+    sql_no_strings = strip_strings(strip_comments(sql))
     return [
         (match.group(1), match.group(2))
         for match in re.finditer(r"\b([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)\b", sql_no_strings)
@@ -132,11 +175,11 @@ def parse_qualified_columns(sql: str) -> list[tuple[str, str]]:
 
 
 def output_aliases(sql: str) -> set[str]:
-    return {match.group(1).lower() for match in re.finditer(r"(?is)\bas\s+([a-zA-Z_][\w]*)", strip_strings(sql))}
+    return {match.group(1).lower() for match in re.finditer(r"(?is)\bas\s+([a-zA-Z_][\w]*)", strip_strings(strip_comments(sql)))}
 
 
 def unqualified_identifiers(sql: str) -> set[str]:
-    sql_no_strings = strip_strings(sql)
+    sql_no_strings = strip_strings(strip_comments(sql))
     sql_no_qualified = re.sub(r"\b[a-zA-Z_][\w]*\.[a-zA-Z_][\w]*\b", " ", sql_no_strings)
     return {token.lower() for token in re.findall(r"\b[a-zA-Z_][\w]*\b", sql_no_qualified)}
 
@@ -149,7 +192,7 @@ def validate_tables(table_refs: list[dict[str, str]], registry: dict[str, Any]) 
         return issues
     for ref in table_refs:
         if ref["full_name"] not in by_full_name:
-            issues.append(issue("error", "UNKNOWN_TABLE", "SQL 使用了不属于画像域 registry 的表。", ref["table"]))
+            issues.append(issue("error", "UNKNOWN_TABLE", f"SQL 使用了不属于{domain_label(registry)} registry 的表。", ref["table"]))
     return issues
 
 
@@ -159,7 +202,8 @@ def validate_columns(sql: str, table_refs: list[dict[str, str]], registry: dict[
     table_short_to_full = {ref["table"].split(".")[-1].lower(): ref["full_name"] for ref in table_refs}
     known_fields = set().union(*(fields_by_full.get(ref["full_name"], set()) for ref in table_refs)) if table_refs else set()
     known_aliases = set(alias_to_full) | set(table_short_to_full)
-    ignored = {keyword.lower() for keyword in SQL_KEYWORDS | SQL_FUNCTIONS} | known_aliases | output_aliases(sql)
+    derived_aliases = parse_non_physical_table_names(sql)
+    ignored = {keyword.lower() for keyword in SQL_KEYWORDS | SQL_FUNCTIONS} | known_aliases | derived_aliases | output_aliases(sql)
     ignored.update({"yyyyMMdd".lower(), "int", "string", "decimal"})
     ref_databases = set()
     ref_tables = set()
@@ -175,6 +219,8 @@ def validate_columns(sql: str, table_refs: list[dict[str, str]], registry: dict[
     for alias, column in parse_qualified_columns(sql):
         alias_key = alias.lower()
         column_key = column.lower()
+        if alias_key in derived_aliases:
+            continue
         if alias_key not in alias_to_full and alias_key not in table_short_to_full:
             continue
         full_name = alias_to_full.get(alias_key) or table_short_to_full[alias_key]
@@ -206,15 +252,21 @@ def question_has_explicit_time(question: str) -> bool:
     return bool(re.search(r"昨天|前天|今日|今天|近\s*\d+\s*天|最近\s*\d+\s*天|\d{4}[-年]?\d{1,2}[-月]?\d{1,2}", question))
 
 
-def validate_dt(sql: str, table_refs: list[dict[str, str]], question: str = "") -> list[dict[str, str]]:
+def validate_dt(sql: str, table_refs: list[dict[str, str]], question: str = "", registry: Optional[dict[str, Any]] = None) -> list[dict[str, str]]:
     if not table_refs:
         return []
     sql_clean = normalize_sql(sql).lower()
+    referenced_tables = {ref["full_name"] for ref in table_refs}
+    max_pt_tables = {
+        match.group(1).lower()
+        for match in re.finditer(r"max_pt\(\s*'([^']+)'\s*\)", sql_clean)
+    }
     dt_condition_count = len(re.findall(r"(?:\b[a-zA-Z_][\w]*\.)?\bdt\s*=", sql_clean))
     issues = []
     if dt_condition_count == 0:
-        issues.append(issue("error", "MISSING_DT", "所有画像域表都必须显式过滤 dt 分区。"))
-    elif len(table_refs) > 1 and dt_condition_count < len(table_refs):
+        domain = domain_label(registry or {})
+        issues.append(issue("error", "MISSING_DT", f"所有{domain}相关表都必须显式过滤分区字段。"))
+    elif len(table_refs) > 1 and dt_condition_count < len(table_refs) and not referenced_tables <= max_pt_tables:
         issues.append(
             issue(
                 "warning",
@@ -238,17 +290,35 @@ def validate_dt(sql: str, table_refs: list[dict[str, str]], question: str = "") 
     return issues
 
 
-def validate_join_keys(sql: str, table_refs: list[dict[str, str]]) -> list[dict[str, str]]:
+def validate_join_keys(sql: str, table_refs: list[dict[str, str]], registry: dict[str, Any]) -> list[dict[str, str]]:
     if len(table_refs) <= 1:
         return []
     sql_clean = normalize_sql(sql).lower()
-    user_join = re.search(r"\b[a-zA-Z_][\w]*\.user_id\s*=\s*[a-zA-Z_][\w]*\.user_id\b", sql_clean)
-    dt_join = re.search(r"\b[a-zA-Z_][\w]*\.dt\s*=\s*[a-zA-Z_][\w]*\.dt\b", sql_clean)
+    join_pairs = re.findall(
+        r"\b([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)\s*=\s*([a-zA-Z_][\w]*)\.([a-zA-Z_][\w]*)\b",
+        sql_clean,
+    )
+    _, _, fields_by_full = table_maps(registry)
+    known_join_keys = {"user_id"}
+    for ref in table_refs:
+        known_join_keys.update(field for field in fields_by_full.get(ref["full_name"], set()) if field.endswith("_id"))
+    for table in registry.get("tables", []):
+        if table.get("full_name", "").lower() not in {ref["full_name"] for ref in table_refs}:
+            continue
+        known_join_keys.update(key.lower() for key in table.get("join_keys", []) if key)
+
     issues = []
-    if not user_join:
-        issues.append(issue("error", "MISSING_JOIN_USER_ID", "多表 JOIN 必须包含 user_id 等值关联。"))
-    if not dt_join:
-        issues.append(issue("error", "MISSING_JOIN_DT", "多表 JOIN 必须包含 dt 等值关联，避免跨分区误关联。"))
+    if not join_pairs:
+        issues.append(issue("warning", "MISSING_EXPLICIT_JOIN_KEY", "多表 JOIN 未识别到显式等值关联，请确认 JOIN key 是否完整。"))
+        return issues
+    if not any(left_col in known_join_keys and right_col in known_join_keys for _, left_col, _, right_col in join_pairs):
+        issues.append(
+            issue(
+                "warning",
+                "JOIN_KEY_NOT_IN_REGISTRY_HINTS",
+                "多表 JOIN 已存在，但未命中 registry 提示的 join key，请确认是否使用了正确的业务关联键。",
+            )
+        )
     return issues
 
 
@@ -256,9 +326,10 @@ def validate_count_distinct(sql: str, question: str = "") -> list[dict[str, str]
     sql_clean = normalize_sql(sql).lower()
     question_needs_user_count = bool(re.search(r"用户.*多少|多少.*用户|多少人|人数|用户数|分布|占比|比例", question))
     has_count = "count(" in sql_clean
-    has_distinct_user = bool(re.search(r"count\s*\(\s*distinct\s+(?:[a-zA-Z_][\w]*\.)?user_id\s*\)", sql_clean))
+    count_distinct_args = re.findall(r"count\s*\(\s*distinct\s+(.+?)\)", sql_clean)
+    has_distinct_user = any(re.search(r"\b(?:[a-zA-Z_][\w]*\.)?user_id\b", arg) for arg in count_distinct_args)
     if question_needs_user_count and has_count and not has_distinct_user:
-        return [issue("warning", "COUNT_WITHOUT_DISTINCT_USER", "画像域用户数默认应使用 COUNT(DISTINCT user_id)。")]
+        return [issue("warning", "COUNT_WITHOUT_DISTINCT_USER", "用户数问题通常应使用 COUNT(DISTINCT user_id)。")]
     return []
 
 
@@ -277,14 +348,23 @@ def validate_unavailable(sql: str, table_refs: list[dict[str, str]]) -> list[dic
 
 
 def validate_sql(sql: str, registry: dict[str, Any], question: str = "") -> dict[str, Any]:
+    if not sql.strip():
+        result_issues = [issue("error", "EMPTY_SQL", "没有抽取到 SQL；请检查模型是否输出了非标准代码块或空响应。")]
+        return {
+            "status": "fail",
+            "error_count": 1,
+            "warning_count": 0,
+            "table_refs": [],
+            "issues": result_issues,
+        }
     table_refs = parse_table_refs(sql, registry)
     issues = []
     issues.extend(validate_unavailable(sql, table_refs))
     if "目前用户查询无法满足" not in sql:
         issues.extend(validate_tables(table_refs, registry))
         issues.extend(validate_columns(sql, table_refs, registry))
-        issues.extend(validate_dt(sql, table_refs, question))
-        issues.extend(validate_join_keys(sql, table_refs))
+        issues.extend(validate_dt(sql, table_refs, question, registry))
+        issues.extend(validate_join_keys(sql, table_refs, registry))
         issues.extend(validate_count_distinct(sql, question))
         issues.extend(validate_limit(sql, question))
     error_count = sum(item["severity"] == "error" for item in issues)

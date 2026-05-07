@@ -1,0 +1,4 @@
+user_id,dt,reactivation_level,silence_risk_level,em_marketing_sensitivity,pts_prefer_level,rp_prefer_level
+U1001,2026-05-06,高,低,高,中,高
+U1002,2026-05-06,高,高,中,低,中
+U1003,2026-05-06,中,中,高,高,低

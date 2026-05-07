@@ -6,7 +6,8 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MARKDOWN_DIR = REPO_ROOT / "data" / "业务评测集_markdown"
+DEFAULT_SCHEMA_DIR = REPO_ROOT / "data" / "画像域表合并"
+DEFAULT_EVAL_MARKDOWN = REPO_ROOT / "data" / "文档二_画像域Text2SQL评测集.md"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "profile_eval"
 
 
@@ -195,6 +196,8 @@ def parse_table_doc(path: Path) -> dict[str, Any]:
             column["value_hints"] = parse_values_from_description(column["description"])
             columns.append(column)
 
+    ensure_required_columns(columns, path.name)
+
     return {
         "table_name": table_name,
         "database": database,
@@ -206,6 +209,42 @@ def parse_table_doc(path: Path) -> dict[str, Any]:
         "examples": extract_sql_blocks(text),
         "source": {"file": path.name},
     }
+
+
+def ensure_required_columns(columns: list[dict[str, Any]], source_file: str) -> None:
+    existing = {column["name"] for column in columns}
+    required_columns = [
+        {
+            "name": "user_id",
+            "cn_name": "用户ID",
+            "type": "STRING",
+            "description": "用户ID；画像域表通用关联键",
+        },
+        {
+            "name": "dt",
+            "cn_name": "分区日期",
+            "type": "STRING",
+            "description": "分区日期；画像域表通用分区字段",
+        },
+    ]
+    insert_at = 0
+    for column in required_columns:
+        if column["name"] in existing:
+            continue
+        columns.insert(
+            insert_at,
+            {
+                **column,
+                "value_hints": [],
+                "source": {
+                    "file": source_file,
+                    "line_start": 0,
+                    "note": "Derived from global profile-domain join/partition rules.",
+                },
+            },
+        )
+        insert_at += 1
+        existing.add(column["name"])
 
 
 def extract_table_description(text: str) -> str:
@@ -393,23 +432,24 @@ def build_compact_context(registry: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def build_assets(markdown_dir: Path, output_dir: Path) -> dict[str, Any]:
+def build_assets(schema_dir: Path, eval_markdown: Path, output_dir: Path) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    eval_records = parse_eval_set(markdown_dir / "文档二_画像域Text2SQL评测集.md")
+    eval_records = parse_eval_set(eval_markdown)
     eval_path = output_dir / "profile_text2sql_eval.jsonl"
     eval_path.write_text(
         "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in eval_records),
         encoding="utf-8",
     )
 
-    overview = parse_overview(markdown_dir / "画像域_01_Schema总览.md")
-    table_docs = [parse_table_doc(markdown_dir / file_name) for file_name in TABLE_DOCS]
+    overview = parse_overview(schema_dir / "画像域_01_Schema总览.md")
+    table_docs = [parse_table_doc(schema_dir / file_name) for file_name in TABLE_DOCS]
     overview_field_count = merge_overview_core_fields(table_docs, overview)
     registry = {
         "domain": "画像域",
         "version": "p0_rule_based_from_markdown",
-        "source_dir": str(markdown_dir),
+        "source_dir": str(schema_dir),
+        "eval_source": str(eval_markdown),
         "global_rules": {
             "join_rule": overview["join_rule"],
             "dt_rule": overview["dt_rule"],
@@ -466,11 +506,24 @@ def build_assets(markdown_dir: Path, output_dir: Path) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build profile-domain Text2SQL eval and schema assets from markdown docs.")
-    parser.add_argument("--markdown-dir", type=Path, default=DEFAULT_MARKDOWN_DIR)
+    parser.add_argument("--schema-dir", type=Path, default=DEFAULT_SCHEMA_DIR)
+    parser.add_argument("--eval-markdown", type=Path, default=DEFAULT_EVAL_MARKDOWN)
+    parser.add_argument(
+        "--markdown-dir",
+        type=Path,
+        help="Deprecated: old combined directory containing both eval and schema markdown files.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
 
-    result = build_assets(args.markdown_dir, args.output_dir)
+    if args.markdown_dir:
+        schema_dir = args.markdown_dir
+        eval_markdown = args.markdown_dir / "文档二_画像域Text2SQL评测集.md"
+    else:
+        schema_dir = args.schema_dir
+        eval_markdown = args.eval_markdown
+
+    result = build_assets(schema_dir, eval_markdown, args.output_dir)
     print(json.dumps({key: str(value) for key, value in result.items()}, ensure_ascii=False, indent=2))
 
 
