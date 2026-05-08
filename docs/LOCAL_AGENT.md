@@ -77,6 +77,41 @@ LLM_NODE_ROUTER_PROVIDER=moonshot
 LLM_NODE_ROUTER_MODEL=moonshot-v1-128k
 ```
 
+## 新增 LLM API
+
+如果新接口兼容 OpenAI Chat Completions 协议，通常不需要改代码，只需要改两处：
+
+1. 在 `.env` 增加 endpoint 和 key：
+
+```bash
+OPENAI_COMPATIBLE_BASE_URL=https://your-api-host/v1
+OPENAI_COMPATIBLE_API_KEY=your-api-key
+```
+
+2. 在 `configs/online_agent_v1_2.json` 中，把需要切换的节点改成：
+
+```json
+{
+  "provider": "openai_compatible",
+  "model": "your-model-name"
+}
+```
+
+也可以临时用环境变量覆盖单个节点：
+
+```bash
+LLM_NODE_SQL_GENERATION_PROVIDER=openai_compatible
+LLM_NODE_SQL_GENERATION_MODEL=your-model-name
+```
+
+如果要接入一个全新的 provider，变更位置是：
+
+- `chat.py`：在 `GPTChat.resolve_provider()` 里增加 provider 分支，读取对应的 `XXX_BASE_URL` 和 `XXX_API_KEY`。
+- `.env.example`：补充新 provider 的环境变量示例。
+- `configs/online_agent_v1_2.json`：把相关节点的 `provider/model` 配成新 provider。
+
+如果新接口不是 OpenAI Chat Completions 协议，还需要在 `chat.py` 中调整请求 payload 和响应解析。
+
 ## 运行
 
 ### 单条 query
