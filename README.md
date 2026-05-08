@@ -21,6 +21,20 @@ python3 run_online_agent.py --help
 python3 build_domain_registry.py --help
 ```
 
+Single-query test:
+
+```bash
+python3 run_online_agent.py --question "昨天push任务的打开率是多少" --output-dir output/single-query-smoke --no-selector
+```
+
+Batch CSV test:
+
+```bash
+python3 run_online_agent.py --input-file data/test_queries.csv --output-dir output/batch-query-smoke --limit 20 --no-selector
+```
+
+The batch CSV must contain a `query` or `question` column. An `id` column is optional; if omitted, the runner generates `Q001`, `Q002`, and so on. Every run writes `run_report.csv` with `query`, `sql`, `res`, and `time_cost`.
+
 Key files for the online agent:
 
 - `run_online_agent.py`

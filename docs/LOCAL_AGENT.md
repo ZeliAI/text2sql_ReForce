@@ -30,6 +30,22 @@ python3 run_online_agent.py --limit 1 --no-selector
 
 - `run_report.csv`：扁平结果表，包含 `query`、`sql`、`res`、`time_cost`、`route_domains`、`output_sql_path` 等测试关键信息。
 
+团队测试支持两种输入方式。
+
+单条 query：
+
+```bash
+python3 run_online_agent.py --question '昨天push任务的打开率是多少' --output-dir output/single-query-smoke --no-selector
+```
+
+批量 CSV：
+
+```bash
+python3 run_online_agent.py --input-file data/test_queries.csv --output-dir output/batch-query-smoke --limit 20 --no-selector
+```
+
+CSV 至少需要包含 `query` 或 `question` 列；`id` 列可选，不传时系统会自动生成 `Q001`、`Q002` 这类编号。
+
 V1.2 多域 registry 构建：
 
 ```bash

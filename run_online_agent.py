@@ -44,6 +44,42 @@ def load_existing_item(output_dir: Path, sample_id: str) -> Optional[dict]:
     return json.loads(log_path.read_text(encoding="utf-8"))
 
 
+def load_input_csv(path: Path) -> list[dict]:
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames:
+            raise ValueError(f"Input CSV has no header: {path}")
+        normalized_fields = {field.strip().lower(): field for field in reader.fieldnames if field}
+        query_column = normalized_fields.get("query") or normalized_fields.get("question")
+        if not query_column:
+            raise ValueError("Input CSV must contain a `query` or `question` column.")
+        id_column = normalized_fields.get("id")
+        difficulty_column = normalized_fields.get("difficulty")
+        records = []
+        for index, row in enumerate(reader, start=1):
+            question = (row.get(query_column) or "").strip()
+            if not question:
+                continue
+            sample_id = (row.get(id_column) or "").strip() if id_column else ""
+            difficulty = (row.get(difficulty_column) or "").strip() if difficulty_column else ""
+            records.append(
+                {
+                    **row,
+                    "id": sample_id or f"Q{index:03d}",
+                    "question": question,
+                    "difficulty": difficulty,
+                }
+            )
+    return records
+
+
+def select_records(records: list[dict], sample_ids: str, offset: int, limit: int) -> list[dict]:
+    if sample_ids:
+        wanted = {item.strip() for item in sample_ids.split(",") if item.strip()}
+        return [record for record in records if record["id"] in wanted]
+    return records[offset : offset + limit]
+
+
 def route_domains_text(item: dict) -> str:
     route = item.get("route") or {}
     domains = route.get("domains") or []
@@ -141,6 +177,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--sample-ids", default="", help="Comma-separated ids such as U001,U004. Overrides limit/offset.")
+    parser.add_argument("--input-file", type=Path, help="CSV file with a `query` or `question` column for batch testing.")
     parser.add_argument("--question", default="", help="Run one interactive question instead of eval records.")
     parser.add_argument("--no-selector", action="store_true")
     parser.add_argument("--resume", action="store_true", help="Reuse existing sample log.json files and skip model calls for completed records.")
@@ -149,16 +186,17 @@ def main() -> None:
     config = load_config(args.config)
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
+    if args.question and args.input_file:
+        raise ValueError("Use either `--question` for one query or `--input-file` for batch CSV, not both.")
+
     if args.question:
         records = [{"id": "interactive", "question": args.question, "difficulty": ""}]
+    elif args.input_file:
+        records = select_records(load_input_csv(args.input_file), args.sample_ids, args.offset, args.limit)
     else:
         profile = domain_config(config, "profile")
         eval_records = load_jsonl(resolve_path(profile["eval_path"]))
-        if args.sample_ids:
-            wanted = {item.strip() for item in args.sample_ids.split(",") if item.strip()}
-            records = [record for record in eval_records if record["id"] in wanted]
-        else:
-            records = eval_records[args.offset : args.offset + args.limit]
+        records = select_records(eval_records, args.sample_ids, args.offset, args.limit)
 
     run_started_at = now_iso()
     run_start = time.perf_counter()
